@@ -356,19 +356,33 @@ if file:
         st.write(response.choices[0].message.content)
 
 # ==================================
-# MODEL EXPORT
+#  GENERATE BUSINESS REPORT
 # ==================================
 
-    st.subheader("📦 Export Model")
+    st.subheader("📦 Generate Business Report")
 
-    if st.button("Download Model"):
+    if st.button("Create PDF Report"):
 
-        joblib.dump(best_model,"model.pkl")
+        report="AI_Report.pdf"
 
-        with open("model.pkl","rb") as f:
+        c = canvas.Canvas(report,pagesize=letter)
+
+        c.drawString(100,750,"AI Data Analysis Report")
+        c.drawString(100,720,f"Rows: {df.shape[0]}")
+        c.drawString(100,700,f"Columns: {df.shape[1]}")
+        c.drawString(100,680,f"Model Score: {score}")
+
+        c.save()
+
+        with open(report,"rb") as f:
 
             st.download_button(
-                "Download",
+                "Download Report",
                 f,
-                file_name="model.pkl"
+                file_name="AI_Report.pdf"
             )
+
+else:
+
+    st.info("Upload a dataset to begin analysis.")
+    
