@@ -192,8 +192,7 @@ if file:
 # =====================================================
 # HYPERPARAMETER TUNING
 # =====================================================
-
-st.subheader("⚙ Hyperparameter Optimization")
+    st.subheader("⚙ Hyperparameter Optimization")
 
 if metric == "Accuracy":   # Classification
 
@@ -237,6 +236,7 @@ study = optuna.create_study(direction="maximize")
 study.optimize(objective,n_trials=10)
 
 st.write("Best Parameters:", study.best_params)
+
 
 # =====================================================
 # EXPLAINABLE AI
