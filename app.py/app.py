@@ -193,7 +193,9 @@ if file:
 # HYPERPARAMETER TUNING
 # =====================================================
 
-    st.subheader("⚙ Hyperparameter Optimization")
+st.subheader("⚙ Hyperparameter Optimization")
+
+if metric == "Accuracy":   # Classification
 
     def objective(trial):
 
@@ -211,10 +213,30 @@ if file:
 
         return accuracy_score(y_test,pred)
 
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective,n_trials=10)
+else:   # Regression
 
-    st.write("Best Parameters:",study.best_params)
+    def objective(trial):
+
+        n = trial.suggest_int("n_estimators",50,200)
+        depth = trial.suggest_int("max_depth",3,10)
+
+        model = RandomForestRegressor(
+            n_estimators=n,
+            max_depth=depth
+        )
+
+        model.fit(X_train,y_train)
+
+        pred = model.predict(X_test)
+
+        return r2_score(y_test,pred)
+
+
+study = optuna.create_study(direction="maximize")
+
+study.optimize(objective,n_trials=10)
+
+st.write("Best Parameters:", study.best_params)
 
 # =====================================================
 # EXPLAINABLE AI
