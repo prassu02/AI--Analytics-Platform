@@ -192,11 +192,8 @@ if file:
 # =====================================================
 # HYPERPARAMETER TUNING
 # =====================================================
-# ==================================
-# HYPERPARAMETER OPTIMIZATION
-# ==================================
 
-st.subheader("⚙ Hyperparameter Optimization")
+   st.subheader("⚙ Hyperparameter Optimization")
 
 # Detect task type again to avoid NameError
 if y.dtype == "object" or len(np.unique(y)) < 20:
