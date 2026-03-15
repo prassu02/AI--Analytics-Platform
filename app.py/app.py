@@ -10,10 +10,12 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
+
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
@@ -34,9 +36,9 @@ from reportlab.lib.pagesizes import letter
 st.set_page_config(layout="wide")
 st.title("🚀 Enterprise AI Analytics Platform")
 
-# ===============================
-# FILE UPLOAD
-# ===============================
+# ======================================================
+# 1 FILE UPLOAD
+# ======================================================
 
 file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
 
@@ -50,9 +52,9 @@ if file:
     st.success("Dataset Loaded")
     st.dataframe(df.head())
 
-    # ===============================
-    # DATA CLEANING
-    # ===============================
+# ======================================================
+# 2 DATA CLEANING
+# ======================================================
 
     df = df.drop_duplicates()
 
@@ -62,24 +64,26 @@ if file:
         else:
             df[col] = df[col].fillna(df[col].mean())
 
-    # ===============================
-    # FEATURE ENGINEERING
-    # ===============================
+# ======================================================
+# 3 FEATURE ENGINEERING
+# ======================================================
 
-    numeric = df.select_dtypes(include=np.number).columns
+    numeric_cols = df.select_dtypes(include=np.number).columns
 
-    for col in numeric:
+    for col in numeric_cols:
         df[f"{col}_square"] = df[col]**2
         df[f"{col}_log"] = np.log1p(np.abs(df[col])+1)
 
-    # ===============================
-    # DASHBOARD BUILDER
-    # ===============================
+# ======================================================
+# 4 DASHBOARD BUILDER
+# ======================================================
 
     st.subheader("📊 Dashboard Builder")
 
-    chart = st.selectbox("Chart Type",
-        ["Histogram","Scatter","Box","Line"])
+    chart = st.selectbox(
+        "Chart Type",
+        ["Histogram","Scatter","Box","Line"]
+    )
 
     x = st.selectbox("X Column", df.columns)
 
@@ -87,8 +91,8 @@ if file:
         fig = px.histogram(df,x=x)
 
     elif chart == "Scatter":
-        y = st.selectbox("Y Column", df.columns)
-        fig = px.scatter(df,x=x,y=y)
+        y_col = st.selectbox("Y Column", df.columns)
+        fig = px.scatter(df,x=x,y=y_col)
 
     elif chart == "Line":
         fig = px.line(df,y=x)
@@ -98,9 +102,9 @@ if file:
 
     st.plotly_chart(fig,use_container_width=True)
 
-    # ===============================
-    # AUTOML
-    # ===============================
+# ======================================================
+# 5 AUTOML
+# ======================================================
 
     st.subheader("🤖 AutoML")
 
@@ -125,6 +129,7 @@ if file:
         y_test = le.transform(y_test)
 
         models = {
+
             "LogisticRegression": LogisticRegression(),
             "RandomForest": RandomForestClassifier(),
             "SVM": SVC(),
@@ -132,13 +137,15 @@ if file:
             "XGBoost": XGBClassifier(),
             "LightGBM": LGBMClassifier(),
             "CatBoost": CatBoostClassifier(verbose=0)
+
         }
 
-        metric="Accuracy"
+        metric = "Accuracy"
 
     else:
 
-        models={
+        models = {
+
             "LinearRegression": LinearRegression(),
             "RandomForest": RandomForestRegressor(),
             "SVR": SVR(),
@@ -146,52 +153,57 @@ if file:
             "XGBoost": XGBRegressor(),
             "LightGBM": LGBMRegressor(),
             "CatBoost": CatBoostRegressor(verbose=0)
+
         }
 
-        metric="R2"
+        metric = "R2"
 
-    scores={}
+    scores = {}
 
     for name,model in models.items():
 
         model.fit(X_train,y_train)
 
-        pred=model.predict(X_test)
+        pred = model.predict(X_test)
 
-        if metric=="Accuracy":
-            score=accuracy_score(y_test,pred)
+        if metric == "Accuracy":
+            score = accuracy_score(y_test,pred)
         else:
-            score=r2_score(y_test,pred)
+            score = r2_score(y_test,pred)
 
-        scores[name]=score
+        scores[name] = score
 
-    result=pd.DataFrame(scores.items(),
-                        columns=["Model","Score"]
-                        ).sort_values("Score",ascending=False)
+    result = pd.DataFrame(
+        scores.items(),
+        columns=["Model","Score"]
+    ).sort_values("Score",ascending=False)
 
     st.dataframe(result)
 
-    best_model=models[result.iloc[0]["Model"]]
+    best_model_name = result.iloc[0]["Model"]
+    best_model = models[best_model_name]
 
-    # ===============================
-    # HYPERPARAMETER TUNING
-    # ===============================
+# ======================================================
+# 6 HYPERPARAMETER TUNING
+# ======================================================
 
     st.subheader("⚙ Hyperparameter Optimization")
 
-    if metric=="Accuracy":
+    if metric == "Accuracy":
 
         def objective(trial):
 
-            n=trial.suggest_int("n_estimators",50,200)
-            depth=trial.suggest_int("max_depth",3,10)
+            n = trial.suggest_int("n_estimators",50,200)
+            depth = trial.suggest_int("max_depth",3,10)
 
-            model=RandomForestClassifier(
-                n_estimators=n,max_depth=depth)
+            model = RandomForestClassifier(
+                n_estimators=n,
+                max_depth=depth
+            )
 
             model.fit(X_train,y_train)
 
-            pred=model.predict(X_test)
+            pred = model.predict(X_test)
 
             return accuracy_score(y_test,pred)
 
@@ -199,125 +211,183 @@ if file:
 
         def objective(trial):
 
-            n=trial.suggest_int("n_estimators",50,200)
-            depth=trial.suggest_int("max_depth",3,10)
+            n = trial.suggest_int("n_estimators",50,200)
+            depth = trial.suggest_int("max_depth",3,10)
 
-            model=RandomForestRegressor(
-                n_estimators=n,max_depth=depth)
+            model = RandomForestRegressor(
+                n_estimators=n,
+                max_depth=depth
+            )
 
             model.fit(X_train,y_train)
 
-            pred=model.predict(X_test)
+            pred = model.predict(X_test)
 
             return r2_score(y_test,pred)
 
-    study=optuna.create_study(direction="maximize")
+    study = optuna.create_study(direction="maximize")
     study.optimize(objective,n_trials=10)
 
     st.write("Best Parameters:",study.best_params)
 
-    # ===============================
-    # EXPLAINABLE AI
-    # ===============================
+# ======================================================
+# 7 EXPLAINABLE AI
+# ======================================================
 
     st.subheader("🧠 Explainable AI")
 
-    explainer=shap.Explainer(best_model,X_train)
+    best_model.fit(X_train,y_train)
 
-    shap_values=explainer(X_test)
+    explainer = shap.Explainer(best_model,X_train)
+
+    shap_values = explainer(X_test)
 
     shap.summary_plot(shap_values,X_test,show=False)
 
-    fig=plt.gcf()
+    fig = plt.gcf()
     st.pyplot(fig)
 
-    # ===============================
-    # CLUSTERING
-    # ===============================
+# ======================================================
+# 8 CLUSTERING
+# ======================================================
 
     st.subheader("📍 Clustering")
 
-    k=st.slider("Clusters",2,10,3)
+    k = st.slider("Clusters",2,10,3)
 
-    kmeans=KMeans(n_clusters=k)
+    kmeans = KMeans(n_clusters=k)
 
-    clusters=kmeans.fit_predict(X)
+    clusters = kmeans.fit_predict(X)
 
-    pca=PCA(n_components=2)
+    pca = PCA(n_components=2)
 
-    comp=pca.fit_transform(X)
+    comp = pca.fit_transform(X)
 
-    cluster_df=pd.DataFrame({
+    cluster_df = pd.DataFrame({
+
         "PC1":comp[:,0],
         "PC2":comp[:,1],
         "Cluster":clusters
+
     })
 
-    fig=px.scatter(cluster_df,x="PC1",y="PC2",color="Cluster")
+    fig = px.scatter(
+        cluster_df,
+        x="PC1",
+        y="PC2",
+        color="Cluster"
+    )
 
     st.plotly_chart(fig)
 
-    # ===============================
-    # ANOMALY DETECTION
-    # ===============================
+# ======================================================
+# 9 ANOMALY DETECTION
+# ======================================================
 
     st.subheader("🚨 Anomaly Detection")
 
-    iso=IsolationForest()
+    iso = IsolationForest()
 
-    df["anomaly"]=iso.fit_predict(X)
+    df["anomaly"] = iso.fit_predict(X)
 
     st.write(df["anomaly"].value_counts())
 
-    # ===============================
-    # SEMI SUPERVISED
-    # ===============================
+# ======================================================
+# 10 SEMI SUPERVISED
+# ======================================================
 
-    # ===============================
-# SEMI SUPERVISED LEARNING
-# ===============================
+    st.subheader("Semi-Supervised Learning")
 
-st.subheader("Semi-Supervised Learning")
+    if metric == "Accuracy":
 
-# Run only for classification
-if metric == "Accuracy":
+        y_semi = y_train.copy()
 
-    # Create partially unlabeled data
-    y_semi = y_train.copy()
+        mask = np.random.rand(len(y_semi)) < 0.3
+        y_semi[mask] = -1
 
-    mask = np.random.rand(len(y_semi)) < 0.3
-    y_semi[mask] = -1   # -1 means unlabeled for LabelPropagation
+        semi = LabelPropagation()
 
-    semi = LabelPropagation()
+        semi.fit(X_train,y_semi)
 
-    semi.fit(X_train, y_semi)
+        pred = semi.predict(X_test)
 
-    pred = semi.predict(X_test)
+        st.write(
+            "Semi-Supervised Accuracy:",
+            accuracy_score(y_test,pred)
+        )
 
-    acc = accuracy_score(y_test, pred)
+    else:
 
-    st.write("Semi-Supervised Accuracy:", acc)
+        st.info("Works only for classification datasets")
 
-else:
+# ======================================================
+# 11 TIME SERIES
+# ======================================================
 
-    st.info("Semi-Supervised learning works only for classification datasets.")
-    # ===============================
-    # RL DEMO
-    # ===============================
+    if "date" in df.columns:
+
+        st.subheader("📈 Time Series Forecast")
+
+        df["date"] = pd.to_datetime(df["date"])
+
+        ts = df[["date",target]]
+        ts.columns = ["ds","y"]
+
+        model = Prophet()
+
+        model.fit(ts)
+
+        future = model.make_future_dataframe(periods=30)
+
+        forecast = model.predict(future)
+
+        fig = model.plot(forecast)
+
+        st.pyplot(fig)
+
+# ======================================================
+# 12 REINFORCEMENT LEARNING
+# ======================================================
 
     st.subheader("🤖 Reinforcement Learning")
 
-    env=gym.make("CartPole-v1")
+    env = gym.make("CartPole-v1")
 
-    rl_model=PPO("MlpPolicy",env)
+    rl_model = PPO("MlpPolicy",env)
 
     rl_model.learn(total_timesteps=2000)
 
     st.success("RL Training Complete")
 
-    # ===============================
-    # PDF REPORT
-    # ===============================
+# ======================================================
+# 13 DATASET CHAT
+# ======================================================
+
+    st.subheader("💬 Dataset Chat")
+
+    api_key = st.text_input("OpenAI API Key",type="password")
+
+    question = st.text_input("Ask about dataset")
+
+    if api_key and question:
+
+        client = OpenAI(api_key=api_key)
+
+        prompt = f"""
+        Dataset columns: {list(df.columns)}
+        Question: {question}
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content":prompt}]
+        )
+
+        st.write(response.choices[0].message.content)
+
+# ======================================================
+# 14 PDF REPORT
+# ======================================================
 
     st.subheader("📦 Generate Business Report")
 
@@ -325,9 +395,9 @@ else:
 
         report="AI_Report.pdf"
 
-        c=canvas.Canvas(report,pagesize=letter)
+        c = canvas.Canvas(report,pagesize=letter)
 
-        best_score=result.iloc[0]["Score"]
+        best_score = result.iloc[0]["Score"]
 
         c.drawString(100,750,"AI Data Analysis Report")
         c.drawString(100,720,f"Rows: {df.shape[0]}")
@@ -337,8 +407,12 @@ else:
         c.save()
 
         with open(report,"rb") as f:
-            st.download_button("Download Report",f,
-                               file_name="AI_Report.pdf")
+
+            st.download_button(
+                "Download Report",
+                f,
+                file_name="AI_Report.pdf"
+            )
 
 else:
 
