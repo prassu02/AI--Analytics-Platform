@@ -402,4 +402,4 @@ if st.button("Create PDF Report"):
             )
 else:
 
-st.info("Upload dataset to start analysis")
+    st.info("Upload dataset to start analysis")
