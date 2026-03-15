@@ -4,8 +4,9 @@ import numpy as np
 import plotly.express as px
 import shap
 import optuna
-import joblib
+import joblib 
 
+from streamlit_drawable_canvas import st_canvas
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
