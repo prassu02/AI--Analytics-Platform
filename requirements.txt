@@ -8,9 +8,10 @@ lightgbm
 catboost
 optuna
 shap
+prophet
 stable-baselines3
 gymnasium
-prophet
-openai
 joblib
-openpyxl
+openai
+reportlab
+matplotlib
