@@ -242,35 +242,35 @@ st.write("Best Parameters:", study.best_params)
 # EXPLAINABLE AI
 # =====================================================
 
-    st.subheader("🧠 Explainable AI")
+st.subheader("🧠 Explainable AI")
 
-    explainer = shap.Explainer(best_model,X_train)
-    shap_values = explainer(X_test)
+explainer = shap.Explainer(best_model,X_train)
+shap_values = explainer(X_test)
 
-    shap.summary_plot(shap_values,X_test,show=False)
+shap.summary_plot(shap_values,X_test,show=False)
 
-    fig = plt.gcf()
-    st.pyplot(fig)
+fig = plt.gcf()
+st.pyplot(fig)
 
 # =====================================================
 # CLUSTERING
 # =====================================================
 
-    st.subheader("📍 Clustering")
+st.subheader("📍 Clustering")
 
-    k = st.slider("Clusters",2,10,3)
+k = st.slider("Clusters",2,10,3)
 
-    kmeans = KMeans(n_clusters=k)
-    clusters = kmeans.fit_predict(X)
+kmeans = KMeans(n_clusters=k)
+clusters = kmeans.fit_predict(X)
 
-    pca = PCA(n_components=2)
-    comp = pca.fit_transform(X)
+pca = PCA(n_components=2)
+comp = pca.fit_transform(X)
 
-    cluster_df = pd.DataFrame({
+cluster_df = pd.DataFrame({
 
-        "PC1": comp[:,0],
-        "PC2": comp[:,1],
-        "Cluster": clusters
+    "PC1": comp[:,0],
+    "PC2": comp[:,1],
+    "Cluster": clusters
 
     })
 
