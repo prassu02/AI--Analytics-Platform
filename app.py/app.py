@@ -273,16 +273,34 @@ if file:
     # SEMI SUPERVISED
     # ===============================
 
-    st.subheader("Semi-Supervised Learning")
+    # ===============================
+# SEMI SUPERVISED LEARNING
+# ===============================
 
-    semi=LabelPropagation()
+st.subheader("Semi-Supervised Learning")
 
-    semi.fit(X_train,y_train)
+# Run only for classification
+if metric == "Accuracy":
 
-    pred=semi.predict(X_test)
+    # Create partially unlabeled data
+    y_semi = y_train.copy()
 
-    st.write("Accuracy:",accuracy_score(y_test,pred))
+    mask = np.random.rand(len(y_semi)) < 0.3
+    y_semi[mask] = -1   # -1 means unlabeled for LabelPropagation
 
+    semi = LabelPropagation()
+
+    semi.fit(X_train, y_semi)
+
+    pred = semi.predict(X_test)
+
+    acc = accuracy_score(y_test, pred)
+
+    st.write("Semi-Supervised Accuracy:", acc)
+
+else:
+
+    st.info("Semi-Supervised learning works only for classification datasets.")
     # ===============================
     # RL DEMO
     # ===============================
