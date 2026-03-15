@@ -274,63 +274,63 @@ cluster_df = pd.DataFrame({
 
     })
 
-    fig = px.scatter(cluster_df,x="PC1",y="PC2",color="Cluster")
+fig = px.scatter(cluster_df,x="PC1",y="PC2",color="Cluster")
 
-    st.plotly_chart(fig)
+st.plotly_chart(fig)
 
 # =====================================================
 # ANOMALY DETECTION
 # =====================================================
 
-    st.subheader("🚨 Anomaly Detection")
+st.subheader("🚨 Anomaly Detection")
 
-    iso = IsolationForest()
+iso = IsolationForest()
 
-    df["anomaly"] = iso.fit_predict(X)
+df["anomaly"] = iso.fit_predict(X)
 
-    st.write(df["anomaly"].value_counts())
+st.write(df["anomaly"].value_counts())
 
 # =====================================================
 # SEMI SUPERVISED
 # =====================================================
 
-    st.subheader("Semi-Supervised Learning")
+st.subheader("Semi-Supervised Learning")
 
-    X_train = np.nan_to_num(X_train)
-    X_test = np.nan_to_num(X_test)
+X_train = np.nan_to_num(X_train)
+X_test = np.nan_to_num(X_test)
 
-    semi = LabelPropagation()
+semi = LabelPropagation()
 
-    semi.fit(X_train,y_train)
+semi.fit(X_train,y_train)
 
-    pred = semi.predict(X_test)
+pred = semi.predict(X_test)
 
-    st.write("Accuracy:",accuracy_score(y_test,pred))
+st.write("Accuracy:",accuracy_score(y_test,pred))
 
 # =====================================================
 # TIME SERIES
 # =====================================================
 
-    if "date" in df.columns:
+if "date" in df.columns:
 
-        st.subheader("📈 Forecasting")
+    st.subheader("📈 Forecasting")
 
-        df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"])
 
-        ts = df[["date",target]]
-        ts.columns = ["ds","y"]
+    ts = df[["date",target]]
+    ts.columns = ["ds","y"]
 
-        model = Prophet()
+    model = Prophet()
 
-        model.fit(ts)
+    model.fit(ts)
 
-        future = model.make_future_dataframe(periods=30)
+    future = model.make_future_dataframe(periods=30)
 
-        forecast = model.predict(future)
+    forecast = model.predict(future)
 
-        fig = model.plot(forecast)
+    fig = model.plot(forecast)
 
-        st.pyplot(fig)
+    st.pyplot(fig)
 
 # =====================================================
 # RL DEMO
@@ -350,57 +350,56 @@ cluster_df = pd.DataFrame({
 # DATASET CHAT
 # =====================================================
 
-    st.subheader("💬 Dataset Chat")
+st.subheader("💬 Dataset Chat")
 
-    api_key = st.text_input("OpenAI API Key",type="password")
+api_key = st.text_input("OpenAI API Key",type="password")
 
-    question = st.text_input("Ask about dataset")
+question = st.text_input("Ask about dataset")
 
-    if api_key and question:
+if api_key and question:
 
-        client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key)
 
-        prompt = f"""
-        Dataset columns: {list(df.columns)}
-        Question: {question}
-        """
+    prompt = f"""
+    Dataset columns: {list(df.columns)}
+    Question: {question}
+    """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role":"user","content":prompt}]
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user","content":prompt}]
         )
 
-        st.write(response.choices[0].message.content)
+    st.write(response.choices[0].message.content)
 
 # =====================================================
 # PDF REPORT
 # =====================================================
 
-    st.subheader("📦 Generate Business Report")
+st.subheader("📦 Generate Business Report")
 
-    if st.button("Create PDF Report"):
+if st.button("Create PDF Report"):
 
-        report="AI_Report.pdf"
+    report="AI_Report.pdf"
 
-        c = canvas.Canvas(report,pagesize=letter)
+    c = canvas.Canvas(report,pagesize=letter)
 
-        best_score = result.iloc[0]["Score"]
+    best_score = result.iloc[0]["Score"]
 
-        c.drawString(100,750,"AI Data Analysis Report")
-        c.drawString(100,720,f"Rows: {df.shape[0]}")
-        c.drawString(100,700,f"Columns: {df.shape[1]}")
-        c.drawString(100,680,f"Best Model Score: {best_score}")
+    c.drawString(100,750,"AI Data Analysis Report")
+    c.drawString(100,720,f"Rows: {df.shape[0]}")
+    c.drawString(100,700,f"Columns: {df.shape[1]}")
+    c.drawString(100,680,f"Best Model Score: {best_score}")
 
-        c.save()
+    c.save()
 
-        with open(report,"rb") as f:
+    with open(report,"rb") as f:
 
-            st.download_button(
-                "Download Report",
-                f,
-                file_name="AI_Report.pdf"
+        st.download_button(
+            "Download Report",
+            f,
+            file_name="AI_Report.pdf"
             )
-
 else:
 
-    st.info("Upload dataset to start analysis")
+st.info("Upload dataset to start analysis")
