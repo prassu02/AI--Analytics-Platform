@@ -14,4 +14,3 @@ prophet
 openai
 joblib
 openpyxl
-streamlit-drawable-canvas
