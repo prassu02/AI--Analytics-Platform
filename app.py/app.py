@@ -1,12 +1,13 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import shap
 import optuna
-import joblib 
+import joblib
+import matplotlib.pyplot as plt
 
-from streamlit_drawable_canvas import st_canvas
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
@@ -32,13 +33,16 @@ import gymnasium as gym
 
 from openai import OpenAI
 
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+
 
 st.set_page_config(layout="wide")
 st.title("🚀 Enterprise AI Analytics Platform")
 
-# ==================================
+# =====================================================
 # DATA UPLOAD
-# ==================================
+# =====================================================
 
 file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
 
@@ -52,9 +56,9 @@ if file:
     st.success("Dataset Loaded")
     st.dataframe(df.head())
 
-# ==================================
+# =====================================================
 # DATA CLEANING
-# ==================================
+# =====================================================
 
     df = df.drop_duplicates()
 
@@ -62,56 +66,50 @@ if file:
 
         if df[col].dtype == "object":
             df[col] = df[col].fillna(df[col].mode()[0])
+
         else:
             df[col] = df[col].fillna(df[col].mean())
 
-# ==================================
+# =====================================================
 # FEATURE ENGINEERING
-# ==================================
+# =====================================================
 
     numeric = df.select_dtypes(include=np.number).columns
 
     for col in numeric:
 
         df[f"{col}_square"] = df[col] ** 2
-        df[f"{col}_log"] = np.log1p(df[col])
+        df[f"{col}_log"] = np.log1p(np.abs(df[col]) + 1)
 
-# ==================================
+# =====================================================
 # DASHBOARD BUILDER
-# ==================================
+# =====================================================
 
     st.subheader("📊 Dashboard Builder")
 
-    chart = st.selectbox(
-        "Chart Type",
-        ["Histogram","Scatter","Box","Line"]
-    )
+    chart = st.selectbox("Chart Type",
+        ["Histogram","Scatter","Box","Line"])
 
     x = st.selectbox("X Column", df.columns)
 
     if chart == "Histogram":
-
         fig = px.histogram(df,x=x)
 
     elif chart == "Scatter":
-
         y = st.selectbox("Y Column", df.columns)
-
         fig = px.scatter(df,x=x,y=y)
 
     elif chart == "Line":
-
         fig = px.line(df,y=x)
 
     else:
-
         fig = px.box(df,y=x)
 
     st.plotly_chart(fig,use_container_width=True)
 
-# ==================================
-# AUTOML TRAINING
-# ==================================
+# =====================================================
+# AUTOML
+# =====================================================
 
     st.subheader("🤖 AutoML")
 
@@ -180,10 +178,9 @@ if file:
 
         scores[name] = score
 
-    result = pd.DataFrame(
-        scores.items(),
-        columns=["Model","Score"]
-    ).sort_values("Score",ascending=False)
+    result = pd.DataFrame(scores.items(),
+                          columns=["Model","Score"]
+                          ).sort_values("Score",ascending=False)
 
     st.dataframe(result)
 
@@ -192,9 +189,9 @@ if file:
 
     st.success(f"Best Model: {best_model_name}")
 
-# ==================================
+# =====================================================
 # HYPERPARAMETER TUNING
-# ==================================
+# =====================================================
 
     st.subheader("⚙ Hyperparameter Optimization")
 
@@ -215,41 +212,36 @@ if file:
         return accuracy_score(y_test,pred)
 
     study = optuna.create_study(direction="maximize")
-
-    study.optimize(objective,n_trials=20)
+    study.optimize(objective,n_trials=10)
 
     st.write("Best Parameters:",study.best_params)
 
-# ==================================
+# =====================================================
 # EXPLAINABLE AI
-# ==================================
+# =====================================================
 
     st.subheader("🧠 Explainable AI")
 
     explainer = shap.Explainer(best_model,X_train)
-
     shap_values = explainer(X_test)
 
     shap.summary_plot(shap_values,X_test,show=False)
 
-    st.pyplot()
+    fig = plt.gcf()
+    st.pyplot(fig)
 
-# ==================================
+# =====================================================
 # CLUSTERING
-# ==================================
+# =====================================================
 
     st.subheader("📍 Clustering")
 
     k = st.slider("Clusters",2,10,3)
 
     kmeans = KMeans(n_clusters=k)
-
     clusters = kmeans.fit_predict(X)
 
-    df["cluster"] = clusters
-
     pca = PCA(n_components=2)
-
     comp = pca.fit_transform(X)
 
     cluster_df = pd.DataFrame({
@@ -264,9 +256,9 @@ if file:
 
     st.plotly_chart(fig)
 
-# ==================================
+# =====================================================
 # ANOMALY DETECTION
-# ==================================
+# =====================================================
 
     st.subheader("🚨 Anomaly Detection")
 
@@ -276,11 +268,14 @@ if file:
 
     st.write(df["anomaly"].value_counts())
 
-# ==================================
+# =====================================================
 # SEMI SUPERVISED
-# ==================================
+# =====================================================
 
     st.subheader("Semi-Supervised Learning")
+
+    X_train = np.nan_to_num(X_train)
+    X_test = np.nan_to_num(X_test)
 
     semi = LabelPropagation()
 
@@ -288,19 +283,19 @@ if file:
 
     pred = semi.predict(X_test)
 
-    st.write("Semi-supervised accuracy:",
-             accuracy_score(y_test,pred))
+    st.write("Accuracy:",accuracy_score(y_test,pred))
 
-# ==================================
-# TIME SERIES FORECASTING
-# ==================================
+# =====================================================
+# TIME SERIES
+# =====================================================
 
     if "date" in df.columns:
 
         st.subheader("📈 Forecasting")
 
-        ts = df[["date",target]]
+        df["date"] = pd.to_datetime(df["date"])
 
+        ts = df[["date",target]]
         ts.columns = ["ds","y"]
 
         model = Prophet()
@@ -315,11 +310,11 @@ if file:
 
         st.pyplot(fig)
 
-# ==================================
-# REINFORCEMENT LEARNING DEMO
-# ==================================
+# =====================================================
+# RL DEMO
+# =====================================================
 
-    st.subheader("🤖 Reinforcement Learning Demo")
+    st.subheader("🤖 Reinforcement Learning")
 
     env = gym.make("CartPole-v1")
 
@@ -327,11 +322,11 @@ if file:
 
     rl_model.learn(total_timesteps=2000)
 
-    st.success("RL Agent Trained")
+    st.success("RL Training Complete")
 
-# ==================================
+# =====================================================
 # DATASET CHAT
-# ==================================
+# =====================================================
 
     st.subheader("💬 Dataset Chat")
 
@@ -345,7 +340,6 @@ if file:
 
         prompt = f"""
         Dataset columns: {list(df.columns)}
-
         Question: {question}
         """
 
@@ -356,9 +350,9 @@ if file:
 
         st.write(response.choices[0].message.content)
 
-# ==================================
-#  GENERATE BUSINESS REPORT
-# ==================================
+# =====================================================
+# PDF REPORT
+# =====================================================
 
     st.subheader("📦 Generate Business Report")
 
@@ -368,10 +362,12 @@ if file:
 
         c = canvas.Canvas(report,pagesize=letter)
 
+        best_score = result.iloc[0]["Score"]
+
         c.drawString(100,750,"AI Data Analysis Report")
         c.drawString(100,720,f"Rows: {df.shape[0]}")
         c.drawString(100,700,f"Columns: {df.shape[1]}")
-        c.drawString(100,680,f"Model Score: {score}")
+        c.drawString(100,680,f"Best Model Score: {best_score}")
 
         c.save()
 
@@ -385,5 +381,4 @@ if file:
 
 else:
 
-    st.info("Upload a dataset to begin analysis.")
-    
+    st.info("Upload dataset to start analysis")
