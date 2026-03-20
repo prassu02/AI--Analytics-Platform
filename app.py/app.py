@@ -287,24 +287,15 @@ if file:
     # ======================================================
     # 10 SEMI SUPERVISED
     # ======================================================
+     st.subheader("Semi-Supervised Learning")
 
-    st.subheader("Semi-Supervised Learning")
+    semi=LabelPropagation()
 
-    if task == "classification":
+    semi.fit(X_train,y_train)
 
-        y_semi = y_train.copy()
-        mask = np.random.rand(len(y_semi)) < 0.3
-        y_semi[mask] = -1
+    pred=semi.predict(X_test)
 
-        semi = LabelPropagation()
-        semi.fit(X_train,y_semi)
-
-        pred = semi.predict(X_test)
-
-        st.write("Accuracy:", accuracy_score(y_test,pred))
-
-    else:
-        st.info("Only works for classification")
+    st.write("Accuracy:",accuracy_score(y_test,pred))
 
     # ======================================================
     # 11 TIME SERIES
