@@ -34,7 +34,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
 st.set_page_config(layout="wide")
-st.title("🚀 Enterprise AI Analytics Platform")
+st.title("🚀 AI Analytics Platform")
 
 # ======================================================
 # 1 FILE UPLOAD
@@ -51,6 +51,7 @@ if file:
 
     st.success("Dataset Loaded")
     st.dataframe(df.head())
+    df.shape,df.size()
 
 # ======================================================
 # 2 DATA CLEANING
