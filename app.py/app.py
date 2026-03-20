@@ -44,22 +44,25 @@ file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
 
 if file:
 
+    # ---------------- LOAD DATA ----------------
     if file.name.endswith(".csv"):
         df = pd.read_csv(file)
     else:
         df = pd.read_excel(file)
 
     st.success("Dataset Loaded")
+
     st.dataframe(df.head())
     st.dataframe(df.tail())
 
     st.write("Shape:", df.shape)
     st.write("Total Values:", df.size)
-    st.write("Statistical Data Information:", df.describe())
+    st.write("Statistical Info:")
+    st.write(df.describe())
 
-# ======================================================
-# 2 DATA CLEANING
-# ======================================================
+    # ======================================================
+    # 2 DATA CLEANING
+    # ======================================================
 
     df = df.drop_duplicates()
 
@@ -69,68 +72,56 @@ if file:
         else:
             df[col] = df[col].fillna(df[col].mean())
 
-# ======================================================
-# 3 FEATURE ENGINEERING
-# ======================================================
+    # ======================================================
+    # 3 FEATURE ENGINEERING
+    # ======================================================
 
     numeric_cols = df.select_dtypes(include=np.number).columns
 
     for col in numeric_cols:
         df[f"{col}_square"] = df[col]**2
-        df[f"{col}_log"] = np.log1p(np.abs(df[col])+1)
+        df[f"{col}_log"] = np.log1p(np.abs(df[col]) + 1)
 
-# ======================================================
-# 4 DASHBOARD BUILDER
-# ======================================================
-    
-st.subheader("📊 Dashboard Builder")
+    # ======================================================
+    # 4 DASHBOARD BUILDER
+    # ======================================================
 
-chart = st.selectbox(
-    "Chart Type",
-    ["Histogram","Scatter","Box","Line","Bar","Pie"]
-)
+    st.subheader("📊 Dashboard Builder")
 
-x = st.selectbox("X Column", df.columns)
-
-if chart == "Histogram":
-    fig = px.histogram(df, x=x)
-
-elif chart == "Scatter":
-    y_col = st.selectbox("Y Column", df.columns)
-    fig = px.scatter(df, x=x, y=y_col)
-
-elif chart == "Line":
-    fig = px.line(df, y=x)
-
-elif chart == "Box":
-    fig = px.box(df, y=x)
-    
-elif chart == "Bar":
-    y_col = st.selectbox("Y Column", df.columns)
-
-    fig = px.bar(
-        df,
-        x=x,
-        y=y_col,
-        title="Bar Chart"
-    )
-    
-elif chart == "Pie":
-    pie_data = df[x].value_counts().reset_index()
-    pie_data.columns = [x, "count"]
-
-    fig = px.pie(
-        pie_data,
-        names=x,
-        values="count",
-        title="Pie Chart"
+    chart = st.selectbox(
+        "Chart Type",
+        ["Histogram","Scatter","Box","Line","Bar","Pie"]
     )
 
-st.plotly_chart(fig, use_container_width=True)
+    x = st.selectbox("X Column", df.columns)
 
-# ======================================================
-# 5 AUTOML
-# ======================================================
+    if chart == "Histogram":
+        fig = px.histogram(df, x=x)
+
+    elif chart == "Scatter":
+        y_col = st.selectbox("Y Column", df.columns)
+        fig = px.scatter(df, x=x, y=y_col)
+
+    elif chart == "Line":
+        fig = px.line(df, y=x)
+
+    elif chart == "Box":
+        fig = px.box(df, y=x)
+
+    elif chart == "Bar":
+        y_col = st.selectbox("Y Column", df.columns)
+        fig = px.bar(df, x=x, y=y_col)
+
+    elif chart == "Pie":
+        pie_data = df[x].value_counts().reset_index()
+        pie_data.columns = [x, "count"]
+        fig = px.pie(pie_data, names=x, values="count")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ======================================================
+    # 5 AUTOML
+    # ======================================================
 
     st.subheader("🤖 AutoML")
 
@@ -144,215 +135,160 @@ st.plotly_chart(fig, use_container_width=True)
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
 
-    X_train,X_test,y_train,y_test = train_test_split(
-        X,y,test_size=0.2,random_state=42
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
     )
 
-    if y.dtype == "object":
+    # Task detection
+    if y.dtype == "object" or len(np.unique(y)) < 20:
 
         le = LabelEncoder()
         y_train = le.fit_transform(y_train)
         y_test = le.transform(y_test)
 
         models = {
-
-            "LogisticRegression": LogisticRegression(),
+            "LogisticRegression": LogisticRegression(max_iter=1000),
             "RandomForest": RandomForestClassifier(),
             "SVM": SVC(),
-            "KNN": KNeighborsClassifier(),
-            "XGBoost": XGBClassifier(),
-            "LightGBM": LGBMClassifier(),
-            "CatBoost": CatBoostClassifier(verbose=0)
-
+            "KNN": KNeighborsClassifier()
         }
 
-        metric = "Accuracy"
+        task = "classification"
 
     else:
 
         models = {
-
             "LinearRegression": LinearRegression(),
             "RandomForest": RandomForestRegressor(),
             "SVR": SVR(),
-            "KNN": KNeighborsRegressor(),
-            "XGBoost": XGBRegressor(),
-            "LightGBM": LGBMRegressor(),
-            "CatBoost": CatBoostRegressor(verbose=0)
-
+            "KNN": KNeighborsRegressor()
         }
 
-        metric = "R2"
+        task = "regression"
 
     scores = {}
 
-    for name,model in models.items():
+    for name, model in models.items():
 
-        model.fit(X_train,y_train)
-
+        model.fit(X_train, y_train)
         pred = model.predict(X_test)
 
-        if metric == "Accuracy":
-            score = accuracy_score(y_test,pred)
+        if task == "classification":
+            score = accuracy_score(y_test, pred)
         else:
-            score = r2_score(y_test,pred)
+            score = r2_score(y_test, pred)
 
         scores[name] = score
 
-    result = pd.DataFrame(
-        scores.items(),
-        columns=["Model","Score"]
-    ).sort_values("Score",ascending=False)
+    result = pd.DataFrame(scores.items(),
+                          columns=["Model","Score"]
+                          ).sort_values("Score",ascending=False)
 
     st.dataframe(result)
 
-    best_model_name = result.iloc[0]["Model"]
-    best_model = models[best_model_name]
+    best_model = models[result.iloc[0]["Model"]]
 
-# ======================================================
-# 6 HYPERPARAMETER TUNING
-# ======================================================
+    # ======================================================
+    # 6 HYPERPARAMETER TUNING
+    # ======================================================
 
     st.subheader("⚙ Hyperparameter Optimization")
 
-    if metric == "Accuracy":
+    if task == "classification":
 
         def objective(trial):
-
-            n = trial.suggest_int("n_estimators",50,200)
-            depth = trial.suggest_int("max_depth",3,10)
-
             model = RandomForestClassifier(
-                n_estimators=n,
-                max_depth=depth
+                n_estimators=trial.suggest_int("n_estimators",50,200),
+                max_depth=trial.suggest_int("max_depth",3,10)
             )
-
             model.fit(X_train,y_train)
-
-            pred = model.predict(X_test)
-
-            return accuracy_score(y_test,pred)
+            return accuracy_score(y_test,model.predict(X_test))
 
     else:
 
         def objective(trial):
-
-            n = trial.suggest_int("n_estimators",50,200)
-            depth = trial.suggest_int("max_depth",3,10)
-
             model = RandomForestRegressor(
-                n_estimators=n,
-                max_depth=depth
+                n_estimators=trial.suggest_int("n_estimators",50,200),
+                max_depth=trial.suggest_int("max_depth",3,10)
             )
-
             model.fit(X_train,y_train)
-
-            pred = model.predict(X_test)
-
-            return r2_score(y_test,pred)
+            return r2_score(y_test,model.predict(X_test))
 
     study = optuna.create_study(direction="maximize")
     study.optimize(objective,n_trials=10)
 
     st.write("Best Parameters:",study.best_params)
 
-# ======================================================
-# 7 EXPLAINABLE AI
-# ======================================================
+    # ======================================================
+    # 7 EXPLAINABLE AI
+    # ======================================================
 
     st.subheader("🧠 Explainable AI")
 
     best_model.fit(X_train,y_train)
-
     explainer = shap.Explainer(best_model,X_train)
-
     shap_values = explainer(X_test)
 
     shap.summary_plot(shap_values,X_test,show=False)
+    st.pyplot(plt.gcf())
 
-    fig = plt.gcf()
-    st.pyplot(fig)
-
-# ======================================================
-# 8 CLUSTERING
-# ======================================================
+    # ======================================================
+    # 8 CLUSTERING
+    # ======================================================
 
     st.subheader("📍 Clustering")
 
     k = st.slider("Clusters",2,10,3)
+    clusters = KMeans(n_clusters=k).fit_predict(X)
 
-    kmeans = KMeans(n_clusters=k)
-
-    clusters = kmeans.fit_predict(X)
-
-    pca = PCA(n_components=2)
-
-    comp = pca.fit_transform(X)
+    comp = PCA(n_components=2).fit_transform(X)
 
     cluster_df = pd.DataFrame({
-
-        "PC1":comp[:,0],
-        "PC2":comp[:,1],
-        "Cluster":clusters
-
+        "PC1": comp[:,0],
+        "PC2": comp[:,1],
+        "Cluster": clusters
     })
 
-    fig = px.scatter(
-        cluster_df,
-        x="PC1",
-        y="PC2",
-        color="Cluster"
-    )
+    st.plotly_chart(px.scatter(cluster_df,x="PC1",y="PC2",color="Cluster"))
 
-    st.plotly_chart(fig)
-
-# ======================================================
-# 9 ANOMALY DETECTION
-# ======================================================
+    # ======================================================
+    # 9 ANOMALY DETECTION
+    # ======================================================
 
     st.subheader("🚨 Anomaly Detection")
 
-    iso = IsolationForest()
-
-    df["anomaly"] = iso.fit_predict(X)
-
+    df["anomaly"] = IsolationForest().fit_predict(X)
     st.write(df["anomaly"].value_counts())
 
-# ======================================================
-# 10 SEMI SUPERVISED
-# ======================================================
+    # ======================================================
+    # 10 SEMI SUPERVISED
+    # ======================================================
 
     st.subheader("Semi-Supervised Learning")
 
-    if metric == "Accuracy":
+    if task == "classification":
 
         y_semi = y_train.copy()
-
         mask = np.random.rand(len(y_semi)) < 0.3
         y_semi[mask] = -1
 
         semi = LabelPropagation()
-
         semi.fit(X_train,y_semi)
 
         pred = semi.predict(X_test)
 
-        st.write(
-            "Semi-Supervised Accuracy:",
-            accuracy_score(y_test,pred)
-        )
+        st.write("Accuracy:", accuracy_score(y_test,pred))
 
     else:
+        st.info("Only works for classification")
 
-        st.info("Works only for classification datasets")
-
-# ======================================================
-# 11 TIME SERIES
-# ======================================================
+    # ======================================================
+    # 11 TIME SERIES
+    # ======================================================
 
     if "date" in df.columns:
 
-        st.subheader("📈 Time Series Forecast")
+        st.subheader("📈 Forecast")
 
         df["date"] = pd.to_datetime(df["date"])
 
@@ -360,86 +296,46 @@ st.plotly_chart(fig, use_container_width=True)
         ts.columns = ["ds","y"]
 
         model = Prophet()
-
         model.fit(ts)
 
         future = model.make_future_dataframe(periods=30)
-
         forecast = model.predict(future)
 
-        fig = model.plot(forecast)
+        st.pyplot(model.plot(forecast))
 
-        st.pyplot(fig)
-
-# ======================================================
-# 12 REINFORCEMENT LEARNING
-# ======================================================
+    # ======================================================
+    # 12 RL
+    # ======================================================
 
     st.subheader("🤖 Reinforcement Learning")
 
     env = gym.make("CartPole-v1")
+    model = PPO("MlpPolicy",env)
+    model.learn(total_timesteps=2000)
 
-    rl_model = PPO("MlpPolicy",env)
+    st.success("RL Training Done")
 
-    rl_model.learn(total_timesteps=2000)
+    # ======================================================
+    # 13 PDF REPORT
+    # ======================================================
 
-    st.success("RL Training Complete")
+    st.subheader("📦 Generate Report")
 
-# ======================================================
-# 13 DATASET CHAT
-# ======================================================
+    if st.button("Create PDF"):
 
-    st.subheader("💬 Dataset Chat")
-
-    api_key = st.text_input("OpenAI API Key",type="password")
-
-    question = st.text_input("Ask about dataset")
-
-    if api_key and question:
-
-        client = OpenAI(api_key=api_key)
-
-        prompt = f"""
-        Dataset columns: {list(df.columns)}
-        Question: {question}
-        """
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role":"user","content":prompt}]
-        )
-
-        st.write(response.choices[0].message.content)
-
-# ======================================================
-# 14 PDF REPORT
-# ======================================================
-
-    st.subheader("📦 Generate Business Report")
-
-    if st.button("Create PDF Report"):
-
-        report="AI_Report.pdf"
-
-        c = canvas.Canvas(report,pagesize=letter)
+        c = canvas.Canvas("report.pdf",pagesize=letter)
 
         best_score = result.iloc[0]["Score"]
 
-        c.drawString(100,750,"AI Data Analysis Report")
+        c.drawString(100,750,"AI Report")
         c.drawString(100,720,f"Rows: {df.shape[0]}")
         c.drawString(100,700,f"Columns: {df.shape[1]}")
-        c.drawString(100,680,f"Best Model Score: {best_score}")
+        c.drawString(100,680,f"Score: {best_score}")
 
         c.save()
 
-        with open(report,"rb") as f:
-
-            st.download_button(
-                "Download Report",
-                f,
-                file_name="AI_Report.pdf"
-            )
+        with open("report.pdf","rb") as f:
+            st.download_button("Download",f,"report.pdf")
 
 else:
-
-    st.info("Upload dataset to start analysis")
+    st.info("Upload dataset to start")
