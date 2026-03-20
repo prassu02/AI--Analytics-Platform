@@ -122,6 +122,9 @@ if file:
     # ======================================================
     # 5 AUTOML
     # ======================================================
+    # ======================================================
+# 5 AUTOML
+# ======================================================
 
     st.subheader("🤖 AutoML")
 
@@ -135,58 +138,71 @@ if file:
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+    X_train,X_test,y_train,y_test = train_test_split(
+        X,y,test_size=0.2,random_state=42
     )
 
-    # Task detection
-    if y.dtype == "object" or len(np.unique(y)) < 20:
+    if y.dtype == "object":
 
         le = LabelEncoder()
         y_train = le.fit_transform(y_train)
         y_test = le.transform(y_test)
 
         models = {
-            "LogisticRegression": LogisticRegression(max_iter=1000),
+
+            "LogisticRegression": LogisticRegression(),
             "RandomForest": RandomForestClassifier(),
             "SVM": SVC(),
-            "KNN": KNeighborsClassifier()
+            "KNN": KNeighborsClassifier(),
+            "XGBoost": XGBClassifier(),
+            "LightGBM": LGBMClassifier(),
+            "CatBoost": CatBoostClassifier(verbose=0)
+
         }
 
-        task = "classification"
+        metric = "Accuracy"
 
     else:
 
         models = {
+
             "LinearRegression": LinearRegression(),
             "RandomForest": RandomForestRegressor(),
             "SVR": SVR(),
-            "KNN": KNeighborsRegressor()
+            "KNN": KNeighborsRegressor(),
+            "XGBoost": XGBRegressor(),
+            "LightGBM": LGBMRegressor(),
+            "CatBoost": CatBoostRegressor(verbose=0)
+
         }
 
-        task = "regression"
+        metric = "R2"
 
     scores = {}
 
-    for name, model in models.items():
+    for name,model in models.items():
 
-        model.fit(X_train, y_train)
+        model.fit(X_train,y_train)
+
         pred = model.predict(X_test)
 
-        if task == "classification":
-            score = accuracy_score(y_test, pred)
+        if metric == "Accuracy":
+            score = accuracy_score(y_test,pred)
         else:
-            score = r2_score(y_test, pred)
+            score = r2_score(y_test,pred)
 
         scores[name] = score
 
-    result = pd.DataFrame(scores.items(),
-                          columns=["Model","Score"]
-                          ).sort_values("Score",ascending=False)
+    result = pd.DataFrame(
+        scores.items(),
+        columns=["Model","Score"]
+    ).sort_values("Score",ascending=False)
 
     st.dataframe(result)
 
-    best_model = models[result.iloc[0]["Model"]]
+    best_model_name = result.iloc[0]["Model"]
+    best_model = models[best_model_name]
+
 
     # ======================================================
     # 6 HYPERPARAMETER TUNING
