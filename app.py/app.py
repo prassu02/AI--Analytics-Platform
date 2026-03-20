@@ -82,30 +82,54 @@ if file:
 # ======================================================
 # 4 DASHBOARD BUILDER
 # ======================================================
+    # ======================================================
+# 4 DASHBOARD BUILDER
+# ======================================================
 
-    st.subheader("📊 Dashboard Builder")
+st.subheader("📊 Dashboard Builder")
 
-    chart = st.selectbox(
-        "Chart Type",
-        ["Histogram","Scatter","Box","Line"]
+chart = st.selectbox(
+    "Chart Type",
+    ["Histogram","Scatter","Box","Line","Bar","Pie"]
+)
+
+x = st.selectbox("X Column", df.columns)
+
+if chart == "Histogram":
+    fig = px.histogram(df, x=x)
+
+elif chart == "Scatter":
+    y_col = st.selectbox("Y Column", df.columns)
+    fig = px.scatter(df, x=x, y=y_col)
+
+elif chart == "Line":
+    fig = px.line(df, y=x)
+
+elif chart == "Box":
+    fig = px.box(df, y=x)
+    
+elif chart == "Bar":
+    y_col = st.selectbox("Y Column", df.columns)
+
+    fig = px.bar(
+        df,
+        x=x,
+        y=y_col,
+        title="Bar Chart"
+    )
+    
+elif chart == "Pie":
+    pie_data = df[x].value_counts().reset_index()
+    pie_data.columns = [x, "count"]
+
+    fig = px.pie(
+        pie_data,
+        names=x,
+        values="count",
+        title="Pie Chart"
     )
 
-    x = st.selectbox("X Column", df.columns)
-
-    if chart == "Histogram":
-        fig = px.histogram(df,x=x)
-
-    elif chart == "Scatter":
-        y_col = st.selectbox("Y Column", df.columns)
-        fig = px.scatter(df,x=x,y=y_col)
-
-    elif chart == "Line":
-        fig = px.line(df,y=x)
-
-    else:
-        fig = px.box(df,y=x)
-
-    st.plotly_chart(fig,use_container_width=True)
+st.plotly_chart(fig, use_container_width=True)
 
 # ======================================================
 # 5 AUTOML
