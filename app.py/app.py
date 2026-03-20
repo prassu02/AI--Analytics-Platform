@@ -204,30 +204,41 @@ if file:
     # ======================================================
     # 6 HYPERPARAMETER TUNING
     # ======================================================
-
     st.subheader("⚙ Hyperparameter Optimization")
 
-    if task == "classification":
+    if metric=="Accuracy":
 
         def objective(trial):
-            model = RandomForestClassifier(
-                n_estimators=trial.suggest_int("n_estimators",50,200),
-                max_depth=trial.suggest_int("max_depth",3,10)
-            )
+
+            n=trial.suggest_int("n_estimators",50,200)
+            depth=trial.suggest_int("max_depth",3,10)
+
+            model=RandomForestClassifier(
+                n_estimators=n,max_depth=depth)
+
             model.fit(X_train,y_train)
-            return accuracy_score(y_test,model.predict(X_test))
+
+            pred=model.predict(X_test)
+
+            return accuracy_score(y_test,pred)
 
     else:
 
         def objective(trial):
-            model = RandomForestRegressor(
-                n_estimators=trial.suggest_int("n_estimators",50,200),
-                max_depth=trial.suggest_int("max_depth",3,10)
-            )
-            model.fit(X_train,y_train)
-            return r2_score(y_test,model.predict(X_test))
 
-    study = optuna.create_study(direction="maximize")
+            n=trial.suggest_int("n_estimators",50,200)
+            depth=trial.suggest_int("max_depth",3,10)
+
+            model=RandomForestRegressor(
+                n_estimators=n,max_depth=depth)
+
+            model.fit(X_train,y_train)
+
+            pred=model.predict(X_test)
+
+            return r2_score(y_test,pred)
+
+    study=optuna.create_study(direction="maximize")
     study.optimize(objective,n_trials=10)
 
     st.write("Best Parameters:",study.best_params)
