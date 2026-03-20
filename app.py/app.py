@@ -55,7 +55,7 @@ if file:
 
     st.write("Shape:", df.shape)
     st.write("Total Values:", df.size)
-    st.write("Data Information:", df.info())
+    st.write("Data Information:", df.describe())
 
 # ======================================================
 # 2 DATA CLEANING
