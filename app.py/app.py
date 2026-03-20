@@ -53,9 +53,9 @@ if file:
     st.dataframe(df.head())
     st.dataframe(df.head())
 
-st.write("Shape:", df.shape)
-st.write("Total Values:", df.size)
-st.write("Data Info:", df.info())
+    st.write("Shape:", df.shape)
+    st.write("Total Values:", df.size)
+    st.write("Data Info:", df.info())
 
 # ======================================================
 # 2 DATA CLEANING
