@@ -287,7 +287,7 @@ if file:
     # ======================================================
     # 10 SEMI SUPERVISED
     # ======================================================
-     st.subheader("Semi-Supervised Learning")
+    st.subheader("Semi-Supervised Learning")
 
     semi=LabelPropagation()
 
