@@ -129,7 +129,7 @@ elif chart == "Pie":
         title="Pie Chart"
     )
 
-st.plotly_chart(fig, use_container_width=True)
+     st.plotly_chart(fig, use_container_width=True)
 
 # ======================================================
 # 5 AUTOML
