@@ -50,8 +50,7 @@ if file:
         df = pd.read_excel(file)
 
     st.success("Dataset Loaded")
-    st.dataframe(df.head())
-    df.shape,df.size()
+    st.dataframe(df.head(),df.shape,df.size())
 
 # ======================================================
 # 2 DATA CLEANING
