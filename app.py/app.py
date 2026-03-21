@@ -287,15 +287,35 @@ if file:
     # ======================================================
     # 10 SEMI SUPERVISED
     # ======================================================
-    st.subheader("Semi-Supervised Learning")
+    # ======================================================
+# SELF-TRAINING CLASSIFIER
+# ======================================================
 
-    semi=LabelPropagation()
+from sklearn.semi_supervised import SelfTrainingClassifier
+from sklearn.ensemble import RandomForestClassifier
 
-    semi.fit(X_train,y_train)
+st.subheader("🔁 Self-Training Classifier")
 
-    pred=semi.predict(X_test)
+if task == "classification":
 
-    st.write("Accuracy:",accuracy_score(y_test,pred))
+    # Create unlabeled data
+    y_semi = y_train.copy()
+    mask = np.random.rand(len(y_semi)) < 0.3
+    y_semi[mask] = -1
+
+    base_model = RandomForestClassifier()
+
+    self_model = SelfTrainingClassifier(base_model)
+
+    self_model.fit(X_train, y_semi)
+
+    pred = self_model.predict(X_test)
+
+    st.success("Self-Training Accuracy:")
+    st.write(accuracy_score(y_test, pred))
+
+else:
+    st.info("Only works for classification datasets")
 
     # ======================================================
     # 11 TIME SERIES
