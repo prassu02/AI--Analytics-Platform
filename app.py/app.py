@@ -1,5 +1,5 @@
-# Required- Python-Libraries
 
+# Required Libraries
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,14 +8,11 @@ import shap
 import optuna
 import matplotlib.pyplot as plt
 
-# Model- training/ Future- Engineering
-
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
 
-# ML- Algorithms
-
+# ML Models
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.svm import SVC, SVR
@@ -25,17 +22,11 @@ from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
 
-# CLUSTER- Techniques
-
+# Unsupervised / Semi
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
-from sklearn.semi_supervised import LabelPropagation
-
-# Self-Training Classifier
-
-from sklearn.semi_supervised import SelfTrainingClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.semi_supervised import LabelPropagation, SelfTrainingClassifier
 
 from prophet import Prophet
 from stable_baselines3 import PPO
@@ -44,6 +35,7 @@ import gymnasium as gym
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
+# UI
 st.set_page_config(layout="wide")
 st.title("🚀 AI Analytics Platform")
 
@@ -55,21 +47,16 @@ file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
 
 if file:
 
-    # ---------------- LOAD DATA ----------------
-    if file.name.endswith(".csv"):
-        df = pd.read_csv(file)
-    else:
-        df = pd.read_excel(file)
+    # LOAD
+    df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
 
     st.success("Dataset Loaded")
-
     st.dataframe(df.head())
     st.dataframe(df.tail())
 
     st.write("Shape:", df.shape)
     st.write("Total Values:", df.size)
-    st.write("Statistical Info:")
-    st.write(df.describe())
+    st.write("Statistics:", df.describe())
 
     # ======================================================
     # 2 DATA CLEANING
@@ -99,10 +86,8 @@ if file:
 
     st.subheader("📊 Dashboard Builder")
 
-    chart = st.selectbox(
-        "Chart Type",
-        ["Histogram","Scatter","Box","Line","Bar","Pie"]
-    )
+    chart = st.selectbox("Chart Type",
+        ["Histogram","Scatter","Box","Line","Bar","Pie"])
 
     x = st.selectbox("X Column", df.columns)
 
@@ -150,14 +135,19 @@ if file:
         X,y,test_size=0.2,random_state=42
     )
 
-    if y.dtype == "object":
+    # Detect task
+    if y.dtype == "object" or len(np.unique(y)) < 20:
+        task = "classification"
+    else:
+        task = "regression"
+
+    if task == "classification":
 
         le = LabelEncoder()
         y_train = le.fit_transform(y_train)
         y_test = le.transform(y_test)
 
         models = {
-
             "LogisticRegression": LogisticRegression(),
             "RandomForest": RandomForestClassifier(),
             "SVM": SVC(),
@@ -165,7 +155,6 @@ if file:
             "XGBoost": XGBClassifier(),
             "LightGBM": LGBMClassifier(),
             "CatBoost": CatBoostClassifier(verbose=0)
-
         }
 
         metric = "Accuracy"
@@ -173,7 +162,6 @@ if file:
     else:
 
         models = {
-
             "LinearRegression": LinearRegression(),
             "RandomForest": RandomForestRegressor(),
             "SVR": SVR(),
@@ -181,7 +169,6 @@ if file:
             "XGBoost": XGBRegressor(),
             "LightGBM": LGBMRegressor(),
             "CatBoost": CatBoostRegressor(verbose=0)
-
         }
 
         metric = "R2"
@@ -189,83 +176,152 @@ if file:
     scores = {}
 
     for name,model in models.items():
-
         model.fit(X_train,y_train)
-
         pred = model.predict(X_test)
 
-        if metric == "Accuracy":
-            score = accuracy_score(y_test,pred)
-        else:
-            score = r2_score(y_test,pred)
-
+        score = accuracy_score(y_test,pred) if metric=="Accuracy" else r2_score(y_test,pred)
         scores[name] = score
 
-    result = pd.DataFrame(
-        scores.items(),
-        columns=["Model","Score"]
-    ).sort_values("Score",ascending=False)
-
+    result = pd.DataFrame(scores.items(),columns=["Model","Score"]).sort_values("Score",ascending=False)
     st.dataframe(result)
 
-    best_model_name = result.iloc[0]["Model"]
-    best_model = models[best_model_name]
-
+    best_model = models[result.iloc[0]["Model"]]
 
     # ======================================================
     # 6 HYPERPARAMETER TUNING
     # ======================================================
+
     st.subheader("⚙ Hyperparameter Optimization")
 
-    if metric=="Accuracy":
+    def objective(trial):
 
-        def objective(trial):
+        n = trial.suggest_int("n_estimators",50,200)
+        depth = trial.suggest_int("max_depth",3,10)
 
-            n=trial.suggest_int("n_estimators",50,200)
-            depth=trial.suggest_int("max_depth",3,10)
-
-            model=RandomForestClassifier(
-                n_estimators=n,max_depth=depth)
-
+        if task == "classification":
+            model = RandomForestClassifier(n_estimators=n,max_depth=depth)
             model.fit(X_train,y_train)
+            return accuracy_score(y_test,model.predict(X_test))
 
-            pred=model.predict(X_test)
-
-            return accuracy_score(y_test,pred)
-
-    else:
-
-        def objective(trial):
-
-            n=trial.suggest_int("n_estimators",50,200)
-            depth=trial.suggest_int("max_depth",3,10)
-
-            model=RandomForestRegressor(
-                n_estimators=n,max_depth=depth)
-
+        else:
+            model = RandomForestRegressor(n_estimators=n,max_depth=depth)
             model.fit(X_train,y_train)
+            return r2_score(y_test,model.predict(X_test))
 
-            pred=model.predict(X_test)
-
-            return r2_score(y_test,pred)
-
-    study=optuna.create_study(direction="maximize")
+    study = optuna.create_study(direction="maximize")
     study.optimize(objective,n_trials=10)
 
     st.write("Best Parameters:",study.best_params)
 
     # ======================================================
-    # 7 EXPLAINABLE AI
+    # 7 EXPLAINABLE AI + FEATURE IMPORTANCE DASHBOARD
     # ======================================================
 
-    st.subheader("🧠 Explainable AI")
+    st.subheader("🧠 Explainable AI Dashboard")
 
-    best_model.fit(X_train,y_train)
-    explainer = shap.Explainer(best_model,X_train)
+# Train best model again (safe)
+best_model.fit(X_train, y_train)
+
+# ---------- FEATURE IMPORTANCE (GLOBAL) ----------
+st.markdown("### 📊 Feature Importance (Global)")
+
+if hasattr(best_model, "feature_importances_"):
+
+    importances = best_model.feature_importances_
+
+    feat_df = pd.DataFrame({
+        "Feature": pd.DataFrame(X).columns,
+        "Importance": importances
+    }).sort_values("Importance", ascending=False)
+
+    fig_imp = px.bar(
+        feat_df.head(15),
+        x="Importance",
+        y="Feature",
+        orientation="h",
+        title="Top Features"
+    )
+
+    st.plotly_chart(fig_imp, use_container_width=True)
+
+else:
+    st.info("Feature importance not available for this model")
+
+# ---------- SHAP EXPLAINER ----------
+st.markdown("### 🔍 SHAP Global Explanation")
+
+try:
+    explainer = shap.Explainer(best_model, X_train)
     shap_values = explainer(X_test)
 
-    shap.summary_plot(shap_values,X_test,show=False)
+    shap.summary_plot(shap_values, X_test, show=False)
     st.pyplot(plt.gcf())
+
+except Exception as e:
+    st.warning(f"SHAP failed: {e}")
+
+# ---------- SHAP DEPENDENCE ----------
+st.markdown("### 🔗 SHAP Feature Interaction")
+
+feature_names = pd.DataFrame(X).columns.tolist()
+
+selected_feature = st.selectbox(
+    "Select feature for SHAP dependence",
+    feature_names
+)
+
+try:
+    shap.dependence_plot(
+        selected_feature,
+        shap_values.values,
+        X_test,
+        show=False
+    )
+    st.pyplot(plt.gcf())
+
+except:
+    st.info("Dependence plot not supported for this model")
+
+# ---------- LOCAL EXPLANATION ----------
+st.markdown("### 🎯 Individual Prediction Explanation")
+
+row_id = st.slider("Select Row", 0, len(X_test)-1, 0)
+
+try:
+    shap.plots.waterfall(shap_values[row_id])
+    st.pyplot(plt.gcf())
+
+except:
+    st.info("Waterfall plot not supported")
+
+# ---------- MODEL PERFORMANCE VISUAL ----------
+st.markdown("### 📈 Model Performance")
+
+pred = best_model.predict(X_test)
+
+if metric == "Accuracy":
+
+    from sklearn.metrics import confusion_matrix
+    import seaborn as sns
+
+    cm = confusion_matrix(y_test, pred)
+
+    fig, ax = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt="d", ax=ax)
+    ax.set_title("Confusion Matrix")
+
+    st.pyplot(fig)
+
+else:
+
+    fig = px.scatter(
+        x=y_test,
+        y=pred,
+        labels={"x":"Actual","y":"Predicted"},
+        title="Actual vs Predicted"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
     # ======================================================
     # 8 CLUSTERING
@@ -296,31 +352,36 @@ if file:
     st.write(df["anomaly"].value_counts())
 
     # ======================================================
-    # 10 SEMI SUPERVISED
+    # 10 SEMI-SUPERVISED
     # ======================================================
 
-st.subheader("🔁 Self-Training Classifier")
+    st.subheader("🔁 Semi-Supervised Learning")
 
-if task == "classification":
+    if task == "classification":
 
-    # Create unlabeled data
-    y_semi = y_train.copy()
-    mask = np.random.rand(len(y_semi)) < 0.3
-    y_semi[mask] = -1
+        y_semi = y_train.copy()
+        mask = np.random.rand(len(y_semi)) < 0.3
+        y_semi[mask] = -1
 
-    base_model = RandomForestClassifier()
+        semi = LabelPropagation()
+        semi.fit(X_train,y_semi)
 
-    self_model = SelfTrainingClassifier(base_model)
+        pred = semi.predict(X_test)
+        st.write("LabelPropagation Accuracy:",accuracy_score(y_test,pred))
 
-    self_model.fit(X_train, y_semi)
+        # Self Training
+        st.subheader("🔁 Self-Training Classifier")
 
-    pred = self_model.predict(X_test)
+        base_model = RandomForestClassifier()
+        self_model = SelfTrainingClassifier(base_model)
 
-    st.success("Self-Training Accuracy:")
-    st.write(accuracy_score(y_test, pred))
+        self_model.fit(X_train,y_semi)
+        pred2 = self_model.predict(X_test)
 
-else:
-    st.info("Only works for classification datasets")
+        st.write("SelfTraining Accuracy:",accuracy_score(y_test,pred2))
+
+    else:
+        st.info("Semi-supervised works only for classification")
 
     # ======================================================
     # 11 TIME SERIES
@@ -331,9 +392,7 @@ else:
         st.subheader("📈 Forecast")
 
         df["date"] = pd.to_datetime(df["date"])
-
-        ts = df[["date",target]]
-        ts.columns = ["ds","y"]
+        ts = df[["date",target]].rename(columns={"date":"ds",target:"y"})
 
         model = Prophet()
         model.fit(ts)
@@ -350,8 +409,8 @@ else:
     st.subheader("🤖 Reinforcement Learning")
 
     env = gym.make("CartPole-v1")
-    model = PPO("MlpPolicy",env)
-    model.learn(total_timesteps=2000)
+    rl_model = PPO("MlpPolicy",env)
+    rl_model.learn(total_timesteps=2000)
 
     st.success("RL Training Done")
 
@@ -376,5 +435,6 @@ else:
 
         with open("report.pdf","rb") as f:
             st.download_button("Download",f,"report.pdf")
-    else:
-        st.info("Upload dataset to start")
+
+else:
+    st.info("Upload dataset to start")
