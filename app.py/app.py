@@ -1,3 +1,4 @@
+# Required- Python-Libraries
 
 import streamlit as st
 import pandas as pd
@@ -7,29 +8,39 @@ import shap
 import optuna
 import matplotlib.pyplot as plt
 
+# Model- training/ Future- Engineering
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
+
+# ML- Algorithms
 
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
+from xgboost import XGBClassifier, XGBRegressor
+from lightgbm import LGBMClassifier, LGBMRegressor
+from catboost import CatBoostClassifier, CatBoostRegressor
+
+# CLUSTER- Techniques
+
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
 from sklearn.semi_supervised import LabelPropagation
 
-from xgboost import XGBClassifier, XGBRegressor
-from lightgbm import LGBMClassifier, LGBMRegressor
-from catboost import CatBoostClassifier, CatBoostRegressor
+# Self-Training Classifier
+
+from sklearn.semi_supervised import SelfTrainingClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 from prophet import Prophet
 from stable_baselines3 import PPO
 import gymnasium as gym
 
-from openai import OpenAI
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
@@ -287,9 +298,6 @@ if file:
     # ======================================================
     # 10 SEMI SUPERVISED
     # ======================================================
-
-from sklearn.semi_supervised import SelfTrainingClassifier
-from sklearn.ensemble import RandomForestClassifier
 
 st.subheader("🔁 Self-Training Classifier")
 
