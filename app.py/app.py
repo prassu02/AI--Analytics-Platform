@@ -287,9 +287,6 @@ if file:
     # ======================================================
     # 10 SEMI SUPERVISED
     # ======================================================
-    # ======================================================
-# SELF-TRAINING CLASSIFIER
-# ======================================================
 
 from sklearn.semi_supervised import SelfTrainingClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -371,5 +368,5 @@ else:
 
         with open("report.pdf","rb") as f:
             st.download_button("Download",f,"report.pdf")
- else:
-    st.info("Upload dataset to start")
+    else:
+        st.info("Upload dataset to start")
