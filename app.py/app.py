@@ -436,5 +436,5 @@ else:
         with open("report.pdf","rb") as f:
             st.download_button("Download",f,"report.pdf")
 
-else:
-    st.info("Upload dataset to start")
+    else:
+        st.info("Upload dataset to start")
