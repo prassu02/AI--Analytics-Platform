@@ -47,7 +47,6 @@ file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
 
 if file:
 
-    # LOAD
     df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
 
     st.success("Dataset Loaded")
@@ -86,8 +85,10 @@ if file:
 
     st.subheader("📊 Dashboard Builder")
 
-    chart = st.selectbox("Chart Type",
-        ["Histogram","Scatter","Box","Line","Bar","Pie"])
+    chart = st.selectbox(
+        "Chart Type",
+        ["Histogram","Scatter","Box","Line","Bar","Pie"]
+    )
 
     x = st.selectbox("X Column", df.columns)
 
@@ -135,7 +136,6 @@ if file:
         X,y,test_size=0.2,random_state=42
     )
 
-    # Detect task
     if y.dtype == "object" or len(np.unique(y)) < 20:
         task = "classification"
     else:
@@ -148,7 +148,7 @@ if file:
         y_test = le.transform(y_test)
 
         models = {
-            "LogisticRegression": LogisticRegression(),
+            "LogisticRegression": LogisticRegression(max_iter=1000),
             "RandomForest": RandomForestClassifier(),
             "SVM": SVC(),
             "KNN": KNeighborsClassifier(),
@@ -194,7 +194,6 @@ if file:
     st.subheader("⚙ Hyperparameter Optimization")
 
     def objective(trial):
-
         n = trial.suggest_int("n_estimators",50,200)
         depth = trial.suggest_int("max_depth",3,10)
 
@@ -202,7 +201,6 @@ if file:
             model = RandomForestClassifier(n_estimators=n,max_depth=depth)
             model.fit(X_train,y_train)
             return accuracy_score(y_test,model.predict(X_test))
-
         else:
             model = RandomForestRegressor(n_estimators=n,max_depth=depth)
             model.fit(X_train,y_train)
@@ -214,114 +212,51 @@ if file:
     st.write("Best Parameters:",study.best_params)
 
     # ======================================================
-    # 7 EXPLAINABLE AI + FEATURE IMPORTANCE DASHBOARD
+    # 7 EXPLAINABLE AI 
     # ======================================================
 
     st.subheader("🧠 Explainable AI Dashboard")
 
-# Train best model again (safe)
-best_model.fit(X_train, y_train)
+    best_model.fit(X_train, y_train)
 
-# ---------- FEATURE IMPORTANCE (GLOBAL) ----------
-st.markdown("### 📊 Feature Importance (Global)")
+    feature_names = pd.DataFrame(X).columns
+    X_train_df = pd.DataFrame(X_train, columns=feature_names)
+    X_test_df = pd.DataFrame(X_test, columns=feature_names)
 
-if hasattr(best_model, "feature_importances_"):
+    # Feature Importance
+    if hasattr(best_model, "feature_importances_"):
+        importances = best_model.feature_importances_
 
-    importances = best_model.feature_importances_
+        feat_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Importance": importances
+        }).sort_values("Importance", ascending=False)
 
-    feat_df = pd.DataFrame({
-        "Feature": pd.DataFrame(X).columns,
-        "Importance": importances
-    }).sort_values("Importance", ascending=False)
+        st.plotly_chart(px.bar(feat_df.head(15), x="Importance", y="Feature", orientation="h"))
 
-    fig_imp = px.bar(
-        feat_df.head(15),
-        x="Importance",
-        y="Feature",
-        orientation="h",
-        title="Top Features"
-    )
+    # SHAP
+    try:
+        explainer = shap.Explainer(best_model, X_train_df)
+        shap_values = explainer(X_test_df)
 
-    st.plotly_chart(fig_imp, use_container_width=True)
+        shap.summary_plot(shap_values, X_test_df, show=False)
+        st.pyplot(plt.gcf()); plt.clf()
 
-else:
-    st.info("Feature importance not available for this model")
+        shap.plots.bar(shap_values, show=False)
+        st.pyplot(plt.gcf()); plt.clf()
 
-# ---------- SHAP EXPLAINER ----------
-st.markdown("### 🔍 SHAP Global Explanation")
+        feature = st.selectbox("Feature for SHAP", feature_names)
 
-try:
-    explainer = shap.Explainer(best_model, X_train)
-    shap_values = explainer(X_test)
+        shap.dependence_plot(feature, shap_values.values, X_test_df, show=False)
+        st.pyplot(plt.gcf()); plt.clf()
 
-    shap.summary_plot(shap_values, X_test, show=False)
-    st.pyplot(plt.gcf())
+        row = st.slider("Row",0,len(X_test_df)-1,0)
 
-except Exception as e:
-    st.warning(f"SHAP failed: {e}")
+        shap.plots.waterfall(shap_values[row], show=False)
+        st.pyplot(plt.gcf()); plt.clf()
 
-# ---------- SHAP DEPENDENCE ----------
-st.markdown("### 🔗 SHAP Feature Interaction")
-
-feature_names = pd.DataFrame(X).columns.tolist()
-
-selected_feature = st.selectbox(
-    "Select feature for SHAP dependence",
-    feature_names
-)
-
-try:
-    shap.dependence_plot(
-        selected_feature,
-        shap_values.values,
-        X_test,
-        show=False
-    )
-    st.pyplot(plt.gcf())
-
-except:
-    st.info("Dependence plot not supported for this model")
-
-# ---------- LOCAL EXPLANATION ----------
-st.markdown("### 🎯 Individual Prediction Explanation")
-
-row_id = st.slider("Select Row", 0, len(X_test)-1, 0)
-
-try:
-    shap.plots.waterfall(shap_values[row_id])
-    st.pyplot(plt.gcf())
-
-except:
-    st.info("Waterfall plot not supported")
-
-# ---------- MODEL PERFORMANCE VISUAL ----------
-st.markdown("### 📈 Model Performance")
-
-pred = best_model.predict(X_test)
-
-if metric == "Accuracy":
-
-    from sklearn.metrics import confusion_matrix
-    import seaborn as sns
-
-    cm = confusion_matrix(y_test, pred)
-
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt="d", ax=ax)
-    ax.set_title("Confusion Matrix")
-
-    st.pyplot(fig)
-
-else:
-
-    fig = px.scatter(
-        x=y_test,
-        y=pred,
-        labels={"x":"Actual","y":"Predicted"},
-        title="Actual vs Predicted"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.warning(f"SHAP error: {e}")
 
     # ======================================================
     # 8 CLUSTERING
@@ -366,22 +301,15 @@ else:
         semi = LabelPropagation()
         semi.fit(X_train,y_semi)
 
-        pred = semi.predict(X_test)
-        st.write("LabelPropagation Accuracy:",accuracy_score(y_test,pred))
+        st.write("LabelPropagation:", accuracy_score(y_test, semi.predict(X_test)))
 
-        # Self Training
-        st.subheader("🔁 Self-Training Classifier")
-
-        base_model = RandomForestClassifier()
-        self_model = SelfTrainingClassifier(base_model)
-
+        self_model = SelfTrainingClassifier(RandomForestClassifier())
         self_model.fit(X_train,y_semi)
-        pred2 = self_model.predict(X_test)
 
-        st.write("SelfTraining Accuracy:",accuracy_score(y_test,pred2))
+        st.write("SelfTraining:", accuracy_score(y_test, self_model.predict(X_test)))
 
     else:
-        st.info("Semi-supervised works only for classification")
+        st.info("Only for classification")
 
     # ======================================================
     # 11 TIME SERIES
@@ -409,19 +337,15 @@ else:
     st.subheader("🤖 Reinforcement Learning")
 
     env = gym.make("CartPole-v1")
-    rl_model = PPO("MlpPolicy",env)
-    rl_model.learn(total_timesteps=2000)
+    PPO("MlpPolicy",env).learn(total_timesteps=2000)
 
-    st.success("RL Training Done")
+    st.success("RL Done")
 
     # ======================================================
     # 13 PDF REPORT
     # ======================================================
 
-    st.subheader("📦 Generate Report")
-
     if st.button("Create PDF"):
-
         c = canvas.Canvas("report.pdf",pagesize=letter)
 
         best_score = result.iloc[0]["Score"]
@@ -436,5 +360,5 @@ else:
         with open("report.pdf","rb") as f:
             st.download_button("Download",f,"report.pdf")
 
-    else:
-        st.info("Upload dataset to start")
+else:
+    st.info("Upload dataset to start")
