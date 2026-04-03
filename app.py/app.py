@@ -40,7 +40,7 @@ st.set_page_config(layout="wide")
 st.title("🚀 AI Analytics Platform")
 
 # ======================================================
-  1 FILE UPLOAD
+# 1 FILE UPLOAD
 # ======================================================
 
 file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
@@ -58,7 +58,7 @@ if file:
     st.write("Statistics:", df.describe())
 
     # ======================================================
-      2 DATA CLEANING
+    #  2 DATA CLEANING
     # ======================================================
     df = df.drop_duplicates()
 for col in df.columns:
@@ -76,7 +76,7 @@ for col in df.columns:
             df[col] = df[col].fillna("Unknown")
 
     # ======================================================
-       3 FEATURE ENGINEERING
+    #   3 FEATURE ENGINEERING
     # ======================================================
 
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -86,7 +86,7 @@ for col in df.columns:
         df[f"{col}_log"] = np.log1p(np.abs(df[col]) + 1)
 
     # ======================================================
-      4 DASHBOARD BUILDER
+     # 4 DASHBOARD BUILDER
     # ======================================================
 
     st.subheader("📊 Dashboard Builder")
