@@ -1,4 +1,3 @@
-
 # Required Libraries
 import streamlit as st
 import pandas as pd
@@ -12,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
 
-## ML models
+# ML Models
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.svm import SVC, SVR
@@ -22,7 +21,7 @@ from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
 
-## Unsupervised / Semi
+# Unsupervised / Semi
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
@@ -35,7 +34,7 @@ import gymnasium as gym
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
-# OPTIONAL FIX (no crash if torch missing)
+# Optional torch
 try:
     import torch
 except:
@@ -45,10 +44,7 @@ except:
 st.set_page_config(layout="wide")
 st.title("🚀 AI Analytics Platform")
 
-# ======================================================
-# 1 FILE UPLOAD
-# ======================================================
-
+# Upload
 file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
 
 if file:
@@ -60,289 +56,206 @@ if file:
     st.dataframe(df.tail())
 
     st.write("Shape:", df.shape)
-    st.write("Total Values:", df.size)
     st.write("Statistics:", df.describe())
 
-    # ======================================================
-    # 2 DATA CLEANING
-    # ======================================================
-
+    # ----------------------------
+    # CLEANING
+    # ----------------------------
     df = df.drop_duplicates()
 
     for col in df.columns:
-
-        # SAFE numeric conversion
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
         if pd.api.types.is_numeric_dtype(df[col]):
             df[col] = df[col].fillna(df[col].mean())
         else:
-            if not df[col].mode().empty:
-                df[col] = df[col].fillna(df[col].mode()[0])
-            else:
-                df[col] = df[col].fillna("Unknown")
+            df[col] = df[col].fillna("Unknown")
 
-    # ======================================================
-    # 3 FEATURE ENGINEERING
-    # ======================================================
-
+    # ----------------------------
+    # FEATURE ENGINEERING
+    # ----------------------------
     numeric_cols = df.select_dtypes(include=np.number).columns
 
     for col in numeric_cols:
         df[f"{col}_square"] = df[col]**2
         df[f"{col}_log"] = np.log1p(np.abs(df[col]) + 1)
 
-    # ======================================================
-    # 4 DASHBOARD BUILDER
-    # ======================================================
+    # ----------------------------
+    # DASHBOARD
+    # ----------------------------
+    st.subheader("📊 Dashboard")
 
-    st.subheader("📊 Dashboard Builder")
-
-    chart = st.selectbox("Chart Type",
-        ["Histogram","Scatter","Box","Line","Bar","Pie"])
-
-    x = st.selectbox("X Column", df.columns)
+    chart = st.selectbox("Chart", ["Histogram","Scatter","Line","Box","Bar","Pie"])
+    x = st.selectbox("X", df.columns)
 
     if chart == "Histogram":
         fig = px.histogram(df, x=x)
-
     elif chart == "Scatter":
-        y_col = st.selectbox("Y Column", df.columns)
+        y_col = st.selectbox("Y", df.columns)
         fig = px.scatter(df, x=x, y=y_col)
-
     elif chart == "Line":
         fig = px.line(df, y=x)
-
     elif chart == "Box":
         fig = px.box(df, y=x)
-
     elif chart == "Bar":
-        y_col = st.selectbox("Y Column", df.columns)
+        y_col = st.selectbox("Y", df.columns)
         fig = px.bar(df, x=x, y=y_col)
-
-    elif chart == "Pie":
+    else:
         pie_data = df[x].value_counts().reset_index()
-        pie_data.columns = [x, "count"]
+        pie_data.columns = [x,"count"]
         fig = px.pie(pie_data, names=x, values="count")
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # ======================================================
-    # 5 AUTOML
-    # ======================================================
-
+    # ----------------------------
+    # AUTOML
+    # ----------------------------
     st.subheader("🤖 AutoML")
 
-    target = st.selectbox("Target Column", df.columns)
-    
-    # 🚨 Check target has multiple classes
+    target = st.selectbox("Target", df.columns)
+
     if len(np.unique(df[target])) < 2:
-        st.error("❌ Target column has only ONE class. Please select another target.")
+        st.error("Target must have at least 2 classes")
         st.stop()
-        
+
     X = df.drop(columns=[target])
     y = df[target]
 
-     # handles all NaN cases
     X = pd.get_dummies(X)
     X = pd.DataFrame(X).apply(pd.to_numeric, errors='coerce')
-    X = X.replace([np.inf, -np.inf], np.nan)
-    X = X.fillna(X.mean(numeric_only=True))
-    X = X.fillna(0)   # fallback safety
+    X = X.replace([np.inf,-np.inf], np.nan)
+    X = X.fillna(X.mean())
+    X = X.fillna(0)
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
-    # 🚨 handles all edge cases)
-    
-    from collections import Counter
-    class_counts = Counter(y)
 
-    # Check if all classes have >=2 samples
-    if all(count >= 2 for count in class_counts.values()):
-       # Safe stratified split
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=0.2,
-            random_state=42,
-            stratify=y
-        )
-    else:
-        st.warning("⚠ Some classes have <2 samples → using normal split")
-        # fallback split (no stratify)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=0.2,
-            random_state=42
-        )
-
+    # Detect task
+    if y.dtype == "object" or len(np.unique(y)) < 20:
         task = "classification"
     else:
         task = "regression"
 
-    if task == "classification":
+    from collections import Counter
+    class_counts = Counter(y)
 
+    if task=="classification" and all(v>=2 for v in class_counts.values()):
+        X_train,X_test,y_train,y_test = train_test_split(
+            X,y,test_size=0.2,random_state=42,stratify=y)
+    else:
+        X_train,X_test,y_train,y_test = train_test_split(
+            X,y,test_size=0.2,random_state=42)
+
+    if task=="classification":
         le = LabelEncoder()
         y_train = le.fit_transform(y_train)
         y_test = le.transform(y_test)
 
         models = {
-            "LogisticRegression": LogisticRegression(max_iter=1000),
-            "RandomForest": RandomForestClassifier(),
-            "SVM": SVC(),
-            "KNN": KNeighborsClassifier(),
-            "XGBoost": XGBClassifier(),
-            "LightGBM": LGBMClassifier(),
-            "CatBoost": CatBoostClassifier(verbose=0)
+            "LR":LogisticRegression(max_iter=1000),
+            "RF":RandomForestClassifier(),
+            "SVM":SVC(),
+            "KNN":KNeighborsClassifier(),
+            "XGB":XGBClassifier(),
+            "LGBM":LGBMClassifier(),
+            "CAT":CatBoostClassifier(verbose=0)
         }
-
-        metric = "Accuracy"
-
+        metric="Accuracy"
     else:
-
         models = {
-            "LinearRegression": LinearRegression(),
-            "RandomForest": RandomForestRegressor(),
-            "SVR": SVR(),
-            "KNN": KNeighborsRegressor(),
-            "XGBoost": XGBRegressor(),
-            "LightGBM": LGBMRegressor(),
-            "CatBoost": CatBoostRegressor(verbose=0)
+            "LR":LinearRegression(),
+            "RF":RandomForestRegressor(),
+            "SVR":SVR(),
+            "KNN":KNeighborsRegressor(),
+            "XGB":XGBRegressor(),
+            "LGBM":LGBMRegressor(),
+            "CAT":CatBoostRegressor(verbose=0)
         }
+        metric="R2"
 
-        metric = "R2"
+    scores={}
+    for name,m in models.items():
+        m.fit(X_train,y_train)
+        p=m.predict(X_test)
+        s=accuracy_score(y_test,p) if metric=="Accuracy" else r2_score(y_test,p)
+        scores[name]=s
 
-    scores = {}
-
-    for name,model in models.items():
-        model.fit(X_train,y_train)
-        pred = model.predict(X_test)
-
-        score = accuracy_score(y_test,pred) if metric=="Accuracy" else r2_score(y_test,pred)
-        scores[name] = score
-
-    result = pd.DataFrame(scores.items(),columns=["Model","Score"]).sort_values("Score",ascending=False)
+    result=pd.DataFrame(scores.items(),columns=["Model","Score"]).sort_values("Score",ascending=False)
     st.dataframe(result)
 
-    best_model = models[result.iloc[0]["Model"]]
+    best=models[result.iloc[0]["Model"]]
 
-    # ======================================================
-    # 6 EXPLAINABLE AI
-    # ======================================================
-
+    # ----------------------------
+    # SHAP
+    # ----------------------------
     st.subheader("🧠 Explainable AI")
 
-    best_model.fit(X_train,y_train)
-
     try:
-        explainer = shap.Explainer(best_model, X_train)
-        shap_values = explainer(X_test)
+        X_train_df=pd.DataFrame(X_train)
+        X_test_df=pd.DataFrame(X_test)
 
-        shap.summary_plot(shap_values, X_test, show=False)
+        explainer=shap.Explainer(best,X_train_df)
+        shap_values=explainer(X_test_df)
+
+        shap.summary_plot(shap_values,X_test_df,show=False)
         st.pyplot(plt.gcf()); plt.clf()
-
     except Exception as e:
-        st.warning(f"SHAP error: {e}")
+        st.warning(e)
 
-    # ======================================================
-    # 7 CLUSTERING
-    # ======================================================
-
+    # ----------------------------
+    # CLUSTERING
+    # ----------------------------
     st.subheader("📍 Clustering")
+    k=st.slider("Clusters",2,10,3)
+    clusters=KMeans(n_clusters=k).fit_predict(X)
+    comp=PCA(n_components=2).fit_transform(X)
 
-    k = st.slider("Clusters",2,10,3)
-    clusters = KMeans(n_clusters=k).fit_predict(X)
+    st.plotly_chart(px.scatter(x=comp[:,0],y=comp[:,1],color=clusters))
 
-    comp = PCA(n_components=2).fit_transform(X)
-
-    cluster_df = pd.DataFrame({
-        "PC1": comp[:,0],
-        "PC2": comp[:,1],
-        "Cluster": clusters
-    })
-
-    st.plotly_chart(px.scatter(cluster_df,x="PC1",y="PC2",color="Cluster"))
-
-    # ======================================================
-    # 8 ANOMALY DETECTION
-    # ======================================================
-
-    st.subheader("🚨 Anomaly Detection")
-
-    df["anomaly"] = IsolationForest().fit_predict(X)
+    # ----------------------------
+    # ANOMALY
+    # ----------------------------
+    st.subheader("🚨 Anomaly")
+    df["anomaly"]=IsolationForest().fit_predict(X)
     st.write(df["anomaly"].value_counts())
 
-    # ======================================================
-    # 9 SEMI-SUPERVISED
-    # ======================================================
+    # ----------------------------
+    # SEMI
+    # ----------------------------
+    if task=="classification":
+        st.subheader("🔁 Semi-Supervised")
+        y_semi=y_train.copy()
+        y_semi[np.random.rand(len(y_semi))<0.3]=-1
 
-    st.subheader("🔁 Semi-Supervised")
+        semi=LabelPropagation().fit(X_train,y_semi)
+        st.write("LP:",accuracy_score(y_test,semi.predict(X_test)))
 
-    if task == "classification":
-
-        y_semi = y_train.copy()
-        mask = np.random.rand(len(y_semi)) < 0.3
-        y_semi[mask] = -1
-
-        semi = LabelPropagation()
-        semi.fit(X_train,y_semi)
-
-        st.write("LabelPropagation:", accuracy_score(y_test, semi.predict(X_test)))
-
-        self_model = SelfTrainingClassifier(RandomForestClassifier())
-        self_model.fit(X_train,y_semi)
-
-        st.write("SelfTraining:", accuracy_score(y_test, self_model.predict(X_test)))
-
-    else:
-        st.info("Only for classification")
-
-    # ======================================================
-    # 10 TIME SERIES
-    # ======================================================
-
+    # ----------------------------
+    # TIME SERIES
+    # ----------------------------
     if "date" in df.columns:
-
         st.subheader("📈 Forecast")
+        df["date"]=pd.to_datetime(df["date"])
+        ts=df[["date",target]].rename(columns={"date":"ds",target:"y"})
+        m=Prophet().fit(ts)
+        future=m.make_future_dataframe(30)
+        st.pyplot(m.plot(m.predict(future)))
 
-        df["date"] = pd.to_datetime(df["date"])
-        ts = df[["date",target]].rename(columns={"date":"ds",target:"y"})
-
-        model = Prophet()
-        model.fit(ts)
-
-        future = model.make_future_dataframe(periods=30)
-        forecast = model.predict(future)
-
-        st.pyplot(model.plot(forecast))
-
-    # ======================================================
-    # 11 RL
-    # ======================================================
-
-    st.subheader("🤖 Reinforcement Learning")
-
-    env = gym.make("CartPole-v1")
-    model = PPO("MlpPolicy",env)
-    model.learn(total_timesteps=2000)
-
+    # ----------------------------
+    # RL
+    # ----------------------------
+    st.subheader("🤖 RL")
+    env=gym.make("CartPole-v1")
+    PPO("MlpPolicy",env).learn(2000)
     st.success("RL Done")
 
-    # ======================================================
-    # 12 PDF
-    # ======================================================
-
+    # ----------------------------
+    # PDF
+    # ----------------------------
     if st.button("Create PDF"):
-        c = canvas.Canvas("report.pdf",pagesize=letter)
-
-        best_score = result.iloc[0]["Score"]
-
+        c=canvas.Canvas("report.pdf",pagesize=letter)
         c.drawString(100,750,"AI Report")
-        c.drawString(100,720,f"Rows: {df.shape[0]}")
-        c.drawString(100,700,f"Columns: {df.shape[1]}")
-        c.drawString(100,680,f"Score: {best_score}")
-
         c.save()
-
         with open("report.pdf","rb") as f:
             st.download_button("Download",f,"report.pdf")
 
