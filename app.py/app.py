@@ -152,25 +152,29 @@ if file:
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
+    # 🚨 handles all edge cases)
     
-    # 🚨 Safe split using stratify
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y if len(np.unique(y)) > 1 else None
-    )
-    # 🚨 Ensure training data has multiple classes
-    if len(np.unique(y_train)) < 2:
-        st.warning("⚠ Training data has only one class. Adjusting split...")
+    from collections import Counter
+    class_counts = Counter(y)
 
+    # Check if all classes have >=2 samples
+    if all(count >= 2 for count in class_counts.values()):
+       # Safe stratified split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y,
-            test_size=0.1,
+            test_size=0.2,
+            random_state=42,
+            stratify=y
+        )
+    else:
+        st.warning("⚠ Some classes have <2 samples → using normal split")
+        # fallback split (no stratify)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=0.2,
             random_state=42
         )
 
-    if y.dtype == "object" or len(np.unique(y)) < 20:
         task = "classification"
     else:
         task = "regression"
