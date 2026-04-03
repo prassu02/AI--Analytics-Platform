@@ -157,7 +157,7 @@ if file:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
         test_size=0.2,
-        ra ndom_state=42,
+        random_state=42,
         stratify=y if len(np.unique(y)) > 1 else None
     )
     # 🚨 Ensure training data has multiple classes
