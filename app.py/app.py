@@ -139,10 +139,11 @@ if file:
     y = df[target]
 
     X = pd.get_dummies(X)
-
-    # FIX numeric issue
     X = pd.DataFrame(X).apply(pd.to_numeric, errors='coerce')
-    X = X.fillna(X.mean())
+    # handles all NaN cases
+    X = X.replace([np.inf, -np.inf], np.nan)
+    X = X.fillna(X.mean(numeric_only=True))
+    X = X.fillna(0)   # fallback safety
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
