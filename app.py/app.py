@@ -134,23 +134,41 @@ if file:
     st.subheader("🤖 AutoML")
 
     target = st.selectbox("Target Column", df.columns)
-
+    
+    # 🚨 Check target has multiple classes
+    if len(np.unique(df[target])) < 2:
+        st.error("❌ Target column has only ONE class. Please select another target.")
+        st.stop()
+        
     X = df.drop(columns=[target])
     y = df[target]
 
+     # handles all NaN cases
     X = pd.get_dummies(X)
     X = pd.DataFrame(X).apply(pd.to_numeric, errors='coerce')
-    # handles all NaN cases
     X = X.replace([np.inf, -np.inf], np.nan)
     X = X.fillna(X.mean(numeric_only=True))
     X = X.fillna(0)   # fallback safety
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
-
-    X_train,X_test,y_train,y_test = train_test_split(
-        X,y,test_size=0.2,random_state=42
+    
+    # 🚨 Safe split using stratify
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=0.2,
+        ra ndom_state=42,
+        stratify=y if len(np.unique(y)) > 1 else None
     )
+    # 🚨 Ensure training data has multiple classes
+    if len(np.unique(y_train)) < 2:
+        st.warning("⚠ Training data has only one class. Adjusting split...")
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=0.1,
+            random_state=42
+        )
 
     if y.dtype == "object" or len(np.unique(y)) < 20:
         task = "classification"
