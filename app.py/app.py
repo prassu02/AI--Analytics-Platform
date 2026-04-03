@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, r2_score
 
-# ML Models
+## ML models
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.svm import SVC, SVR
@@ -22,7 +22,7 @@ from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
 
-# Unsupervised / Semi
+## Unsupervised / Semi
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
@@ -34,6 +34,12 @@ import gymnasium as gym
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+
+# OPTIONAL FIX (no crash if torch missing)
+try:
+    import torch
+except:
+    torch = None
 
 # UI
 st.set_page_config(layout="wide")
@@ -58,25 +64,26 @@ if file:
     st.write("Statistics:", df.describe())
 
     # ======================================================
-    #  2 DATA CLEANING
+    # 2 DATA CLEANING
     # ======================================================
+
     df = df.drop_duplicates()
-for col in df.columns:
-    
-    # Convert to numeric where possible
-    df[col] = pd.to_numeric(df[col], errors='ignore')
 
-    # Fill missing values safely
-    if pd.api.types.is_numeric_dtype(df[col]):
-        df[col] = df[col].fillna(df[col].mean())
-    else:
-        if not df[col].mode().empty:
-            df[col] = df[col].fillna(df[col].mode()[0])
+    for col in df.columns:
+
+        # SAFE numeric conversion
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        if pd.api.types.is_numeric_dtype(df[col]):
+            df[col] = df[col].fillna(df[col].mean())
         else:
-            df[col] = df[col].fillna("Unknown")
+            if not df[col].mode().empty:
+                df[col] = df[col].fillna(df[col].mode()[0])
+            else:
+                df[col] = df[col].fillna("Unknown")
 
     # ======================================================
-    #   3 FEATURE ENGINEERING
+    # 3 FEATURE ENGINEERING
     # ======================================================
 
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -86,15 +93,13 @@ for col in df.columns:
         df[f"{col}_log"] = np.log1p(np.abs(df[col]) + 1)
 
     # ======================================================
-     # 4 DASHBOARD BUILDER
+    # 4 DASHBOARD BUILDER
     # ======================================================
 
     st.subheader("📊 Dashboard Builder")
 
-    chart = st.selectbox(
-        "Chart Type",
-        ["Histogram","Scatter","Box","Line","Bar","Pie"]
-    )
+    chart = st.selectbox("Chart Type",
+        ["Histogram","Scatter","Box","Line","Bar","Pie"])
 
     x = st.selectbox("X Column", df.columns)
 
@@ -134,7 +139,8 @@ for col in df.columns:
     y = df[target]
 
     X = pd.get_dummies(X)
-# Ensure all numeric (FINAL FIX)
+
+    # FIX numeric issue
     X = pd.DataFrame(X).apply(pd.to_numeric, errors='coerce')
     X = X.fillna(X.mean())
 
@@ -197,78 +203,25 @@ for col in df.columns:
     best_model = models[result.iloc[0]["Model"]]
 
     # ======================================================
-    # 6 HYPERPARAMETER TUNING
+    # 6 EXPLAINABLE AI
     # ======================================================
 
-    st.subheader("⚙ Hyperparameter Optimization")
+    st.subheader("🧠 Explainable AI")
 
-    def objective(trial):
-        n = trial.suggest_int("n_estimators",50,200)
-        depth = trial.suggest_int("max_depth",3,10)
+    best_model.fit(X_train,y_train)
 
-        if task == "classification":
-            model = RandomForestClassifier(n_estimators=n,max_depth=depth)
-            model.fit(X_train,y_train)
-            return accuracy_score(y_test,model.predict(X_test))
-        else:
-            model = RandomForestRegressor(n_estimators=n,max_depth=depth)
-            model.fit(X_train,y_train)
-            return r2_score(y_test,model.predict(X_test))
-
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective,n_trials=10)
-
-    st.write("Best Parameters:",study.best_params)
-
-    # ======================================================
-    # 7 EXPLAINABLE AI 
-    # ======================================================
-
-    st.subheader("🧠 Explainable AI Dashboard")
-
-    best_model.fit(X_train, y_train)
-
-    feature_names = pd.DataFrame(X).columns
-    X_train_df = pd.DataFrame(X_train, columns=feature_names)
-    X_test_df = pd.DataFrame(X_test, columns=feature_names)
-
-    # Feature Importance
-    if hasattr(best_model, "feature_importances_"):
-        importances = best_model.feature_importances_
-
-        feat_df = pd.DataFrame({
-            "Feature": feature_names,
-            "Importance": importances
-        }).sort_values("Importance", ascending=False)
-
-        st.plotly_chart(px.bar(feat_df.head(15), x="Importance", y="Feature", orientation="h"))
-
-    # SHAP
     try:
-        explainer = shap.Explainer(best_model, X_train_df)
-        shap_values = explainer(X_test_df)
+        explainer = shap.Explainer(best_model, X_train)
+        shap_values = explainer(X_test)
 
-        shap.summary_plot(shap_values, X_test_df, show=False)
-        st.pyplot(plt.gcf()); plt.clf()
-
-        shap.plots.bar(shap_values, show=False)
-        st.pyplot(plt.gcf()); plt.clf()
-
-        feature = st.selectbox("Feature for SHAP", feature_names)
-
-        shap.dependence_plot(feature, shap_values.values, X_test_df, show=False)
-        st.pyplot(plt.gcf()); plt.clf()
-
-        row = st.slider("Row",0,len(X_test_df)-1,0)
-
-        shap.plots.waterfall(shap_values[row], show=False)
+        shap.summary_plot(shap_values, X_test, show=False)
         st.pyplot(plt.gcf()); plt.clf()
 
     except Exception as e:
         st.warning(f"SHAP error: {e}")
 
     # ======================================================
-    # 8 CLUSTERING
+    # 7 CLUSTERING
     # ======================================================
 
     st.subheader("📍 Clustering")
@@ -287,7 +240,7 @@ for col in df.columns:
     st.plotly_chart(px.scatter(cluster_df,x="PC1",y="PC2",color="Cluster"))
 
     # ======================================================
-    # 9 ANOMALY DETECTION
+    # 8 ANOMALY DETECTION
     # ======================================================
 
     st.subheader("🚨 Anomaly Detection")
@@ -296,10 +249,10 @@ for col in df.columns:
     st.write(df["anomaly"].value_counts())
 
     # ======================================================
-    # 10 SEMI-SUPERVISED
+    # 9 SEMI-SUPERVISED
     # ======================================================
 
-    st.subheader("🔁 Semi-Supervised Learning")
+    st.subheader("🔁 Semi-Supervised")
 
     if task == "classification":
 
@@ -321,7 +274,7 @@ for col in df.columns:
         st.info("Only for classification")
 
     # ======================================================
-    # 11 TIME SERIES
+    # 10 TIME SERIES
     # ======================================================
 
     if "date" in df.columns:
@@ -340,18 +293,19 @@ for col in df.columns:
         st.pyplot(model.plot(forecast))
 
     # ======================================================
-    # 12 RL
+    # 11 RL
     # ======================================================
 
     st.subheader("🤖 Reinforcement Learning")
 
     env = gym.make("CartPole-v1")
-    PPO("MlpPolicy",env).learn(total_timesteps=2000)
+    model = PPO("MlpPolicy",env)
+    model.learn(total_timesteps=2000)
 
     st.success("RL Done")
 
     # ======================================================
-    # 13 PDF REPORT
+    # 12 PDF
     # ======================================================
 
     if st.button("Create PDF"):
