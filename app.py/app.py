@@ -40,7 +40,7 @@ st.set_page_config(layout="wide")
 st.title("🚀 AI Analytics Platform")
 
 # ======================================================
-# 1 FILE UPLOAD
+  1 FILE UPLOAD
 # ======================================================
 
 file = st.file_uploader("Upload CSV or Excel", type=["csv","xlsx"])
@@ -58,19 +58,25 @@ if file:
     st.write("Statistics:", df.describe())
 
     # ======================================================
-    # 2 DATA CLEANING
+      2 DATA CLEANING
     # ======================================================
-
     df = df.drop_duplicates()
+for col in df.columns:
+    
+    # Convert to numeric where possible
+    df[col] = pd.to_numeric(df[col], errors='ignore')
 
-    for col in df.columns:
-        if df[col].dtype == "object":
+    # Fill missing values safely
+    if pd.api.types.is_numeric_dtype(df[col]):
+        df[col] = df[col].fillna(df[col].mean())
+    else:
+        if not df[col].mode().empty:
             df[col] = df[col].fillna(df[col].mode()[0])
         else:
-            df[col] = df[col].fillna(df[col].mean())
+            df[col] = df[col].fillna("Unknown")
 
     # ======================================================
-    # 3 FEATURE ENGINEERING
+       3 FEATURE ENGINEERING
     # ======================================================
 
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -80,7 +86,7 @@ if file:
         df[f"{col}_log"] = np.log1p(np.abs(df[col]) + 1)
 
     # ======================================================
-    # 4 DASHBOARD BUILDER
+      4 DASHBOARD BUILDER
     # ======================================================
 
     st.subheader("📊 Dashboard Builder")
@@ -128,6 +134,9 @@ if file:
     y = df[target]
 
     X = pd.get_dummies(X)
+# Ensure all numeric (FINAL FIX)
+    X = pd.DataFrame(X).apply(pd.to_numeric, errors='coerce')
+    X = X.fillna(X.mean())
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
